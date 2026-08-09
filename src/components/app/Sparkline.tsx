@@ -19,8 +19,11 @@ export function Sparkline({ data, color = "var(--terracotta)", className }: Spar
   const d = points
     .map(([x, y], i) => {
       if (i === 0) return `M ${x} ${y}`;
-      const [px, py] = points[i - 1];
+      const prev = points[i - 1] ?? [x, y];
+      const px = prev[0];
+      const py = prev[1];
       const cx = (px + x) / 2;
+
       return `C ${cx} ${py} ${cx} ${y} ${x} ${y}`;
     })
     .join(" ");
