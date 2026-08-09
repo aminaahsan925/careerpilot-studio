@@ -236,7 +236,7 @@ function DashboardPage() {
                     </div>
                     {i === 0 ? (
                       <div className="flex items-center gap-2">
-                        <span className="h-1.5 w-20 overflow-hidden rounded-full bg-secondary">
+                        <span className="h-1.5 w-14 overflow-hidden rounded-full bg-secondary">
                           <span
                             className="block h-full rounded-full bg-terracotta"
                             style={{ width: `${step.progress}%` }}

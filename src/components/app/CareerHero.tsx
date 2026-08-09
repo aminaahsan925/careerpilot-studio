@@ -29,13 +29,13 @@ export function CareerHero({ personImage, className, compact }: CareerHeroProps)
       </div>
 
       {/* terracotta circle */}
-      <div className="absolute bottom-0 right-[6%] aspect-square w-[46%] max-w-[380px] translate-y-[42%] rounded-full bg-terracotta sm:translate-y-[38%]" />
+      <div className="absolute bottom-0 right-[6%] aspect-square w-[46%] max-w-[380px] translate-y-[30%] rounded-full bg-terracotta" />
 
       {personImage ? (
         <img
           src={personImage}
           alt="Career hero"
-          className="absolute bottom-0 right-[4%] z-10 h-[86%] w-auto object-contain object-bottom mix-blend-luminosity drop-shadow-[0_30px_40px_rgba(0,0,0,0.45)]"
+          className="absolute bottom-0 right-[4%] z-10 h-[86%] w-auto object-contain object-bottom grayscale contrast-110 drop-shadow-[0_30px_40px_rgba(0,0,0,0.45)]"
         />
       ) : null}
 

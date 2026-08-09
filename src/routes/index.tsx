@@ -85,7 +85,7 @@ function Landing() {
             alt="CareerPilot member walking forward"
             width={912}
             height={1200}
-            className="absolute bottom-0 right-[4%] z-10 hidden h-[88%] w-auto object-contain object-bottom mix-blend-luminosity md:block"
+            className="absolute bottom-0 right-[4%] z-10 hidden h-[88%] w-auto object-contain object-bottom grayscale md:block"
           />
           <div className="relative z-20 max-w-[560px] px-8 py-16 md:px-14 md:py-24">
             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-terracotta">
