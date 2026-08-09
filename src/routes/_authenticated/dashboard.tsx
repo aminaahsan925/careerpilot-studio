@@ -24,7 +24,7 @@ import { Sparkline } from "@/components/app/Sparkline";
 import { greeting, useCurrentUser } from "@/data/user";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/dashboard")({
+export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
       { title: "Dashboard — CareerPilot AI" },

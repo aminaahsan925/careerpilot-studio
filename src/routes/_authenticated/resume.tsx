@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { AppLayout } from "@/components/app/AppLayout";
 import { useCurrentUser } from "@/data/user";
 
-export const Route = createFileRoute("/resume")({
+export const Route = createFileRoute("/_authenticated/resume")({
   head: () => ({
     meta: [
       { title: "Resume & Career Analysis — CareerPilot AI" },

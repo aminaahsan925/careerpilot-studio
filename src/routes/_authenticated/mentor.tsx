@@ -7,7 +7,7 @@ import { AppLayout } from "@/components/app/AppLayout";
 import { useCurrentUser } from "@/data/user";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/mentor")({
+export const Route = createFileRoute("/_authenticated/mentor")({
   head: () => ({
     meta: [
       { title: "AI Career Mentor — CareerPilot AI" },
@@ -59,7 +59,7 @@ function MentorPage() {
     setInput("");
     setThinking(true);
     window.setTimeout(() => {
-      setMessages((m) => [...m, { role: "ai", text: reply(value, user.goal) }]);
+      setMessages((m) => [...m, { role: "ai", text: reply(value, user.goal ?? "") }]);
       setThinking(false);
       inputRef.current?.focus();
     }, 700);

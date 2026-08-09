@@ -107,7 +107,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       <div className="mt-4 flex items-center gap-3 rounded-xl border border-sidebar-border bg-card px-3 py-3">
         <img
-          src={user?.avatar}
+          src={user?.avatar ?? undefined}
           alt=""
           loading="lazy"
           className="h-9 w-9 shrink-0 rounded-full bg-muted object-cover"

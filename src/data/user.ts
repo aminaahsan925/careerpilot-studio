@@ -1,134 +1,296 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import heroPerson from "@/assets/hero-person.png";
 import planPortrait from "@/assets/plan-portrait.png";
+import { supabase } from "@/integrations/supabase/client";
 
-export type Score = {
-  label: string;
-  value: number;
-  max: number;
-  note: string;
-  trend: number[];
+/* ------------------------------------------------------------------ *
+ * Types
+ * ------------------------------------------------------------------ */
+
+export type Profile = {
+  id: string;
+  user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  avatar_url: string | null;
+  education_level: string | null;
+  degree: string | null;
+  university: string | null;
+  graduation_year: number | null;
+  current_role: string | null;
+  onboarding_completed: boolean;
 };
 
-export type Application = {
-  company: string;
-  role: string;
-  status: "Under Review" | "Applied" | "Interview Scheduled" | "Offer";
-  initials: string;
+export type CareerGoal = {
+  id: string;
+  target_role: string;
+  target_industry: string | null;
 };
 
-export type Skill = { name: string; level: number };
+export type CatalogSkill = { id: string; name: string; category: string };
 
-export type PlanItem = { id: string; label: string; done: boolean };
-
-export type RoadmapStep = {
-  title: string;
-  meta: string;
-  state: "Active" | "In Progress" | "Upcoming" | "Completed";
-  progress: number;
-};
+export type Skill = { id: string; skillId: string; name: string; category: string; level: number };
 
 export type CareerUser = {
+  userId: string;
+  email: string;
   firstName: string;
+  lastName: string;
   fullName: string;
+  initials: string;
+  /** Current role from the profile, falling back to the career goal. */
   role: string;
-  avatar: string;
+  avatar: string | null;
+  /** Static editorial artwork — part of the design, not user data. */
   heroImage: string;
   planImage: string;
-  goal: string;
+  profile: Profile | null;
+  onboardingCompleted: boolean;
+  goal: string | null;
+  targetIndustry: string | null;
+  /** Phase 1: no roadmap engine yet, so progress is not simulated. */
   goalProgress: number;
-  planDate: { day: string; month: string };
-  scores: Score[];
-  plan: PlanItem[];
-  roadmap: RoadmapStep[];
-  applications: Application[];
+  education: string | null;
   skills: Skill[];
+  /* Phase 1: these feeds have no real data source yet, so they stay empty
+     instead of showing invented numbers. Phase 2 fills them in. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  scores: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  roadmap: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  applications: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  plan: any[];
+  planDate: { day: string; month: string };
 };
 
-const currentUser: CareerUser = {
-  firstName: "Ali",
-  fullName: "Ali Raza",
-  role: "CS Student",
-  avatar: planPortrait,
-  heroImage: heroPerson,
-  planImage: planPortrait,
-  goal: "Full Stack Developer",
-  goalProgress: 65,
-  planDate: { day: "08", month: "May, 2026" },
-  scores: [
-    {
-      label: "Career Score",
-      value: 82,
-      max: 100,
-      note: "12% this month",
-      trend: [28, 34, 30, 44, 38, 52, 48, 66, 62, 78, 84],
-    },
-    {
-      label: "Resume Score",
-      value: 88,
-      max: 100,
-      note: "Great Job!",
-      trend: [20, 30, 26, 42, 46, 40, 58, 66, 72, 80, 88],
-    },
-    {
-      label: "Interview Score",
-      value: 76,
-      max: 100,
-      note: "Keep Practicing",
-      trend: [30, 26, 40, 34, 50, 44, 58, 54, 68, 64, 76],
-    },
-    {
-      label: "Skills Matched",
-      value: 24,
-      max: 30,
-      note: "Keep Learning",
-      trend: [18, 24, 22, 32, 40, 36, 50, 58, 54, 70, 76],
-    },
-  ],
-  plan: [
-    { id: "sql", label: "Complete SQL Course", done: true },
-    { id: "intern", label: "Apply to 5 Internships", done: true },
-    { id: "linkedin", label: "Update LinkedIn Profile", done: false },
-    { id: "interview", label: "Practice Interview", done: false },
-  ],
-  roadmap: [
-    { title: "Full Stack Developer", meta: "12 weeks • Intermediate", state: "Active", progress: 65 },
-    { title: "Next.js & React", meta: "4 weeks • Advanced", state: "In Progress", progress: 45 },
-    { title: "Node.js & Express", meta: "3 weeks • Intermediate", state: "Upcoming", progress: 0 },
-    { title: "MongoDB Basics", meta: "2 weeks • Beginner", state: "Upcoming", progress: 0 },
-  ],
-  applications: [
-    { company: "Systems Limited", role: "Software Engineer Intern", status: "Under Review", initials: "SL" },
-    { company: "Netsol", role: "Frontend Developer Intern", status: "Applied", initials: "NS" },
-    { company: "Contour Software", role: "Backend Developer Intern", status: "Interview Scheduled", initials: "C" },
-  ],
-  skills: [
-    { name: "Python", level: 90 },
-    { name: "SQL", level: 80 },
-    { name: "JavaScript", level: 70 },
-    { name: "Communication", level: 60 },
-    { name: "Problem Solving", level: 85 },
-  ],
-};
+/* ------------------------------------------------------------------ *
+ * Queries
+ * ------------------------------------------------------------------ */
 
-export function fetchCurrentUser(): Promise<CareerUser> {
-  return Promise.resolve(currentUser);
+function planDate(date = new Date()) {
+  return {
+    day: String(date.getDate()).padStart(2, "0"),
+    month: date.toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+  };
+}
+
+function educationLine(profile: Profile | null): string | null {
+  if (!profile) return null;
+  const parts = [profile.degree, profile.university].filter(Boolean);
+  if (profile.graduation_year) parts.push(String(profile.graduation_year));
+  return parts.length ? parts.join(" • ") : (profile.education_level ?? null);
+}
+
+export async function fetchCurrentUser(): Promise<CareerUser | null> {
+  const { data: auth, error: authError } = await supabase.auth.getUser();
+  if (authError || !auth.user) return null;
+  const user = auth.user;
+
+  const [profileRes, goalRes, skillsRes] = await Promise.all([
+    supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
+    supabase.from("career_goals").select("*").eq("user_id", user.id).maybeSingle(),
+    supabase
+      .from("user_skills")
+      .select("id, skill_id, proficiency, skills(id, name, category)")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true }),
+  ]);
+
+  if (profileRes.error) throw profileRes.error;
+  if (goalRes.error) throw goalRes.error;
+  if (skillsRes.error) throw skillsRes.error;
+
+  const profile = (profileRes.data as Profile | null) ?? null;
+  const goal = (goalRes.data as CareerGoal | null) ?? null;
+
+  const skills: Skill[] = (skillsRes.data ?? [])
+    .map((row) => {
+      const s = row.skills as unknown as CatalogSkill | null;
+      if (!s) return null;
+      return {
+        id: row.id as string,
+        skillId: s.id,
+        name: s.name,
+        category: s.category,
+        level: (row.proficiency as number) ?? 50,
+      };
+    })
+    .filter((s): s is Skill => s !== null);
+
+  const firstName = profile?.first_name?.trim() ?? "";
+  const lastName = profile?.last_name?.trim() ?? "";
+  const fullName = [firstName, lastName].filter(Boolean).join(" ") || (user.email ?? "");
+  const initials =
+    [firstName[0], lastName[0]].filter(Boolean).join("").toUpperCase() ||
+    (user.email?.[0]?.toUpperCase() ?? "?");
+
+  return {
+    userId: user.id,
+    email: user.email ?? "",
+    firstName: firstName || (user.email?.split("@")[0] ?? "there"),
+    lastName,
+    fullName,
+    initials,
+    role: profile?.current_role?.trim() || goal?.target_role || "",
+    avatar: profile?.avatar_url ?? null,
+    heroImage: heroPerson,
+    planImage: planPortrait,
+    profile,
+    onboardingCompleted: profile?.onboarding_completed ?? false,
+    goal: goal?.target_role ?? null,
+    targetIndustry: goal?.target_industry ?? null,
+    goalProgress: 0,
+    education: educationLine(profile),
+    skills,
+    scores: [],
+    roadmap: [],
+    applications: [],
+    plan: [],
+    planDate: planDate(),
+  };
 }
 
 export const userQueryOptions = {
-  queryKey: ["current-user"],
+  queryKey: ["current-user"] as const,
   queryFn: fetchCurrentUser,
-  staleTime: Infinity,
+  staleTime: 30_000,
 };
 
 export function useCurrentUser() {
   return useQuery(userQueryOptions);
 }
 
+export function useSkillCatalog() {
+  return useQuery({
+    queryKey: ["skill-catalog"],
+    queryFn: async (): Promise<CatalogSkill[]> => {
+      const { data, error } = await supabase
+        .from("skills")
+        .select("id, name, category")
+        .order("name");
+      if (error) throw error;
+      return (data ?? []) as CatalogSkill[];
+    },
+    staleTime: 5 * 60_000,
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * Mutations
+ * ------------------------------------------------------------------ */
+
+export type ProfileInput = {
+  first_name: string;
+  last_name: string;
+  education_level: string | null;
+  degree: string | null;
+  university: string | null;
+  graduation_year: number | null;
+  current_role: string | null;
+};
+
+async function requireUserId(): Promise<string> {
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) throw new Error("Your session has expired. Please sign in again.");
+  return data.user.id;
+}
+
+export async function saveProfile(input: ProfileInput, completeOnboarding = false) {
+  const userId = await requireUserId();
+  const payload: Record<string, unknown> = { user_id: userId, ...input };
+  if (completeOnboarding) payload["onboarding_completed"] = true;
+
+  const { error } = await supabase
+    .from("profiles")
+    .upsert(payload as never, { onConflict: "user_id" });
+  if (error) throw error;
+}
+
+export async function saveCareerGoal(targetRole: string, targetIndustry: string | null = null) {
+  const userId = await requireUserId();
+  const { error } = await supabase.from("career_goals").upsert(
+    { user_id: userId, target_role: targetRole, target_industry: targetIndustry } as never,
+    { onConflict: "user_id" },
+  );
+  if (error) throw error;
+}
+
+/** Replaces the user's skill selection with the given skill names. */
+export async function saveUserSkills(skillNames: string[]) {
+  const userId = await requireUserId();
+  const names = Array.from(new Set(skillNames.map((n) => n.trim()).filter(Boolean)));
+
+  let skillIds: string[] = [];
+  if (names.length) {
+    const { error: insertError } = await supabase
+      .from("skills")
+      .upsert(
+        names.map((name) => ({ name, category: "General" })) as never,
+        { onConflict: "name", ignoreDuplicates: true },
+      );
+    if (insertError) throw insertError;
+
+    const { data: rows, error: readError } = await supabase
+      .from("skills")
+      .select("id, name")
+      .in("name", names);
+    if (readError) throw readError;
+    skillIds = (rows ?? []).map((r) => r.id as string);
+  }
+
+  const { error: deleteError } = await supabase
+    .from("user_skills")
+    .delete()
+    .eq("user_id", userId);
+  if (deleteError) throw deleteError;
+
+  if (skillIds.length) {
+    const { error } = await supabase
+      .from("user_skills")
+      .insert(skillIds.map((skill_id) => ({ user_id: userId, skill_id })) as never);
+    if (error) throw error;
+  }
+}
+
+export function useSaveProfile() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { profile: ProfileInput; goal?: string | null; skills?: string[] }) =>
+      (async () => {
+        await saveProfile(vars.profile, true);
+        if (vars.goal) await saveCareerGoal(vars.goal);
+        if (vars.skills) await saveUserSkills(vars.skills);
+      })(),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["current-user"] }),
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * Helpers
+ * ------------------------------------------------------------------ */
+
 export function greeting(date = new Date()) {
   const h = date.getHours();
   if (h < 12) return "Good Morning";
   if (h < 18) return "Good Afternoon";
   return "Good Evening";
+}
+
+/** Maps backend/auth failures onto human-readable copy. */
+export function friendlyError(error: unknown, fallback = "Something went wrong. Please try again."): string {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  const lower = message.toLowerCase();
+  if (lower.includes("invalid login credentials")) return "That email or password isn't right.";
+  if (lower.includes("already registered") || lower.includes("already been registered"))
+    return "An account with that email already exists. Try signing in instead.";
+  if (lower.includes("password should be")) return "Please use a password with at least 6 characters.";
+  if (lower.includes("email not confirmed")) return "Please confirm your email address first.";
+  if (lower.includes("rate limit") || lower.includes("too many"))
+    return "Too many attempts. Please wait a moment and try again.";
+  if (lower.includes("session")) return "Your session has expired. Please sign in again.";
+  if (lower.includes("network") || lower.includes("fetch")) return "Connection problem. Check your internet and retry.";
+  return fallback;
 }

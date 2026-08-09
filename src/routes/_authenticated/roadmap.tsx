@@ -6,7 +6,7 @@ import { AppLayout } from "@/components/app/AppLayout";
 import { useCurrentUser } from "@/data/user";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/roadmap")({
+export const Route = createFileRoute("/_authenticated/roadmap")({
   head: () => ({
     meta: [
       { title: "Career Roadmap — CareerPilot AI" },
