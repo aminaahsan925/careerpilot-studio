@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedMentorRouteImport } from './routes/_authenticated/mentor'
+import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedResumeRouteImport } from './routes/_authenticated/resume'
 import { Route as AuthenticatedRoadmapRouteImport } from './routes/_authenticated/roadmap'
 
@@ -41,6 +42,11 @@ const AuthenticatedMentorRoute = AuthenticatedMentorRouteImport.update({
   path: '/mentor',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedResumeRoute = AuthenticatedResumeRouteImport.update({
   id: '/resume',
   path: '/resume',
@@ -57,6 +63,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/mentor': typeof AuthenticatedMentorRoute
+  '/onboarding': typeof AuthenticatedOnboardingRoute
   '/resume': typeof AuthenticatedResumeRoute
   '/roadmap': typeof AuthenticatedRoadmapRoute
 }
@@ -65,6 +72,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/mentor': typeof AuthenticatedMentorRoute
+  '/onboarding': typeof AuthenticatedOnboardingRoute
   '/resume': typeof AuthenticatedResumeRoute
   '/roadmap': typeof AuthenticatedRoadmapRoute
 }
@@ -75,14 +83,29 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/mentor': typeof AuthenticatedMentorRoute
+  '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/resume': typeof AuthenticatedResumeRoute
   '/_authenticated/roadmap': typeof AuthenticatedRoadmapRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/dashboard' | '/mentor' | '/resume' | '/roadmap'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/mentor'
+    | '/onboarding'
+    | '/resume'
+    | '/roadmap'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/dashboard' | '/mentor' | '/resume' | '/roadmap'
+  to:
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/mentor'
+    | '/onboarding'
+    | '/resume'
+    | '/roadmap'
   id:
     | '__root__'
     | '/'
@@ -90,6 +113,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/dashboard'
     | '/_authenticated/mentor'
+    | '/_authenticated/onboarding'
     | '/_authenticated/resume'
     | '/_authenticated/roadmap'
   fileRoutesById: FileRoutesById
@@ -137,6 +161,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMentorRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/onboarding': {
+      id: '/_authenticated/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof AuthenticatedOnboardingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/resume': {
       id: '/_authenticated/resume'
       path: '/resume'
@@ -157,6 +188,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedMentorRoute: typeof AuthenticatedMentorRoute
+  AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedResumeRoute: typeof AuthenticatedResumeRoute
   AuthenticatedRoadmapRoute: typeof AuthenticatedRoadmapRoute
 }
@@ -164,6 +196,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedMentorRoute: AuthenticatedMentorRoute,
+  AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedResumeRoute: AuthenticatedResumeRoute,
   AuthenticatedRoadmapRoute: AuthenticatedRoadmapRoute,
 }

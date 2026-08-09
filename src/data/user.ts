@@ -53,6 +53,16 @@ export type CareerUser = {
   goalProgress: number;
   education: string | null;
   skills: Skill[];
+  /* Phase 1: these feeds have no real data source yet, so they stay empty
+     instead of showing invented numbers. Phase 2 fills them in. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  scores: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  roadmap: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  applications: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  plan: any[];
   planDate: { day: string; month: string };
 };
 
@@ -135,6 +145,10 @@ export async function fetchCurrentUser(): Promise<CareerUser | null> {
     goalProgress: 0,
     education: educationLine(profile),
     skills,
+    scores: [],
+    roadmap: [],
+    applications: [],
+    plan: [],
     planDate: planDate(),
   };
 }
