@@ -1,0 +1,43 @@
+type SparklineProps = {
+  data: number[];
+  color?: string;
+  className?: string;
+};
+
+export function Sparkline({ data, color = "var(--terracotta)", className }: SparklineProps) {
+  const w = 100;
+  const h = 40;
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const span = max - min || 1;
+  const points = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * w;
+    const y = h - ((v - min) / span) * (h - 4) - 2;
+    return [x, y] as const;
+  });
+
+  const d = points
+    .map(([x, y], i) => {
+      if (i === 0) return `M ${x} ${y}`;
+      const [px, py] = points[i - 1];
+      const cx = (px + x) / 2;
+      return `C ${cx} ${py} ${cx} ${y} ${x} ${y}`;
+    })
+    .join(" ");
+
+  const area = `${d} L ${w} ${h} L 0 ${h} Z`;
+  const id = `spark-${data.join("-")}-${color.replace(/[^a-z]/gi, "")}`;
+
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className={className} aria-hidden="true">
+      <defs>
+        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.18" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill={`url(#${id})`} />
+      <path d={d} fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
