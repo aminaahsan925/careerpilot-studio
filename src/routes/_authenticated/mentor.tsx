@@ -59,7 +59,7 @@ function MentorPage() {
     setInput("");
     setThinking(true);
     window.setTimeout(() => {
-      setMessages((m) => [...m, { role: "ai", text: reply(value, user.goal) }]);
+      setMessages((m) => [...m, { role: "ai", text: reply(value, user.goal ?? "") }]);
       setThinking(false);
       inputRef.current?.focus();
     }, 700);
