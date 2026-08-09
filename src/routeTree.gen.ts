@@ -10,73 +10,79 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as MentorRouteImport } from './routes/mentor'
-import { Route as ResumeRouteImport } from './routes/resume'
-import { Route as RoadmapRouteImport } from './routes/roadmap'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedMentorRouteImport } from './routes/_authenticated/mentor'
+import { Route as AuthenticatedResumeRouteImport } from './routes/_authenticated/resume'
+import { Route as AuthenticatedRoadmapRouteImport } from './routes/_authenticated/roadmap'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/_authenticated/dashboard',
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MentorRoute = MentorRouteImport.update({
-  id: '/mentor',
+const AuthenticatedMentorRoute = AuthenticatedMentorRouteImport.update({
+  id: '/_authenticated/mentor',
   path: '/mentor',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ResumeRoute = ResumeRouteImport.update({
-  id: '/resume',
+const AuthenticatedResumeRoute = AuthenticatedResumeRouteImport.update({
+  id: '/_authenticated/resume',
   path: '/resume',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RoadmapRoute = RoadmapRouteImport.update({
-  id: '/roadmap',
+const AuthenticatedRoadmapRoute = AuthenticatedRoadmapRouteImport.update({
+  id: '/_authenticated/roadmap',
   path: '/roadmap',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/dashboard': typeof DashboardRoute
-  '/mentor': typeof MentorRoute
-  '/resume': typeof ResumeRoute
-  '/roadmap': typeof RoadmapRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/mentor': typeof AuthenticatedMentorRoute
+  '/resume': typeof AuthenticatedResumeRoute
+  '/roadmap': typeof AuthenticatedRoadmapRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/dashboard': typeof DashboardRoute
-  '/mentor': typeof MentorRoute
-  '/resume': typeof ResumeRoute
-  '/roadmap': typeof RoadmapRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/mentor': typeof AuthenticatedMentorRoute
+  '/resume': typeof AuthenticatedResumeRoute
+  '/roadmap': typeof AuthenticatedRoadmapRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/dashboard': typeof DashboardRoute
-  '/mentor': typeof MentorRoute
-  '/resume': typeof ResumeRoute
-  '/roadmap': typeof RoadmapRoute
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/mentor': typeof AuthenticatedMentorRoute
+  '/_authenticated/resume': typeof AuthenticatedResumeRoute
+  '/_authenticated/roadmap': typeof AuthenticatedRoadmapRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths: '/' | '/dashboard' | '/mentor' | '/resume' | '/roadmap'
   fileRoutesByTo: FileRoutesByTo
   to: '/' | '/dashboard' | '/mentor' | '/resume' | '/roadmap'
-  id: '__root__' | '/' | '/dashboard' | '/mentor' | '/resume' | '/roadmap'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated/dashboard'
+    | '/_authenticated/mentor'
+    | '/_authenticated/resume'
+    | '/_authenticated/roadmap'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  DashboardRoute: typeof DashboardRoute
-  MentorRoute: typeof MentorRoute
-  ResumeRoute: typeof ResumeRoute
-  RoadmapRoute: typeof RoadmapRoute
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedMentorRoute: typeof AuthenticatedMentorRoute
+  AuthenticatedResumeRoute: typeof AuthenticatedResumeRoute
+  AuthenticatedRoadmapRoute: typeof AuthenticatedRoadmapRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -88,32 +94,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard': {
-      id: '/dashboard'
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
       path: '/dashboard'
       fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/mentor': {
-      id: '/mentor'
+    '/_authenticated/mentor': {
+      id: '/_authenticated/mentor'
       path: '/mentor'
       fullPath: '/mentor'
-      preLoaderRoute: typeof MentorRouteImport
+      preLoaderRoute: typeof AuthenticatedMentorRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/resume': {
-      id: '/resume'
+    '/_authenticated/resume': {
+      id: '/_authenticated/resume'
       path: '/resume'
       fullPath: '/resume'
-      preLoaderRoute: typeof ResumeRouteImport
+      preLoaderRoute: typeof AuthenticatedResumeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/roadmap': {
-      id: '/roadmap'
+    '/_authenticated/roadmap': {
+      id: '/_authenticated/roadmap'
       path: '/roadmap'
       fullPath: '/roadmap'
-      preLoaderRoute: typeof RoadmapRouteImport
+      preLoaderRoute: typeof AuthenticatedRoadmapRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -121,10 +127,10 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  DashboardRoute: DashboardRoute,
-  MentorRoute: MentorRoute,
-  ResumeRoute: ResumeRoute,
-  RoadmapRoute: RoadmapRoute,
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedMentorRoute: AuthenticatedMentorRoute,
+  AuthenticatedResumeRoute: AuthenticatedResumeRoute,
+  AuthenticatedRoadmapRoute: AuthenticatedRoadmapRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
