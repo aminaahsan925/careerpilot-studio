@@ -30,3 +30,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment variables — real secrets live in Project Settings → Secrets.
+.env
+.env.local
+.env.*.local
+!.env.example
