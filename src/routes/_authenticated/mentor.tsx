@@ -1,10 +1,13 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import { ArrowUpRight, Send, Sparkles, TrendingUp } from "lucide-react";
 
+import { toast } from "sonner";
+
 import { AppLayout } from "@/components/app/AppLayout";
-import { useCurrentUser } from "@/data/user";
+import { useChatHistory, useSendMentorMessage } from "@/data/mentor";
+import { friendlyError, useCurrentUser } from "@/data/user";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/mentor")({
@@ -29,40 +32,39 @@ const SUGGESTIONS = [
   "Which internships fit my profile?",
 ];
 
-function reply(question: string, goal: string) {
-  const q = question.toLowerCase();
-  if (q.includes("resume"))
-    return "Your resume scores 88/100. Lead each bullet with an outcome and a metric, move your projects above coursework, and mirror the exact keywords from the job description to lift your ATS parse rate.";
-  if (q.includes("skill"))
-    return "Based on your gap analysis, prioritise Node.js and Express next, then database modelling in MongoDB. That combination closes 6 of the 8 remaining requirements for your goal.";
-  if (q.includes("interview"))
-    return "Run two mock rounds a week: one systems/DSA and one behavioural using STAR. Record yourself — clarity of structure moves interview scores faster than extra content.";
-  return `For your goal of ${goal}, the highest leverage next step is shipping one production-grade project end to end. Depth on a single deployed product outperforms five tutorials in every screening conversation.`;
-}
-
 function MentorPage() {
   const { data: user } = useCurrentUser();
+  const { data: history } = useChatHistory();
+  const sendMessage = useSendMentorMessage();
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Msg[]>([
+  const inputRef = useRef<HTMLInputElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const thinking = sendMessage.isPending;
+
+  const messages: Msg[] = [
     {
-      role: "ai",
+      role: "ai" as const,
       text: "I'm your career mentor. I've reviewed your profile, scores and roadmap — ask me anything about your next move.",
     },
-  ]);
-  const [thinking, setThinking] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+    ...(history ?? []).map((m) => ({
+      role: m.role === "assistant" ? ("ai" as const) : ("user" as const),
+      text: m.content,
+    })),
+  ];
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [history?.length, thinking]);
 
   function send(text: string) {
     const value = text.trim();
-    if (!value || !user) return;
-    setMessages((m) => [...m, { role: "user", text: value }]);
+    if (!value || thinking) return;
     setInput("");
-    setThinking(true);
-    window.setTimeout(() => {
-      setMessages((m) => [...m, { role: "ai", text: reply(value, user.goal ?? "") }]);
-      setThinking(false);
-      inputRef.current?.focus();
-    }, 700);
+    sendMessage.mutate(value, {
+      onError: (error) => toast.error(friendlyError(error, "The mentor couldn't reply just now.")),
+      onSettled: () => inputRef.current?.focus(),
+    });
   }
 
   return (
@@ -86,7 +88,7 @@ function MentorPage() {
             </span>
           </div>
 
-          <div className="flex-1 space-y-5 overflow-y-auto px-6 py-6">
+          <div ref={scrollRef} className="flex-1 space-y-5 overflow-y-auto px-6 py-6">
             {messages.map((m, i) => (
               <motion.div
                 key={i}
