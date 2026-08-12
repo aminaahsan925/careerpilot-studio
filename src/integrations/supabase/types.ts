@@ -83,6 +83,51 @@ export type Database = {
         }
         Relationships: []
       }
+      career_recommendations: {
+        Row: {
+          already_have: Json
+          created_at: string
+          example_titles: Json
+          fit_note: string | null
+          id: string
+          need_to_build: Json
+          position: number
+          required_skills: Json
+          role: string
+          selected: boolean
+          user_id: string
+          why_fit: string | null
+        }
+        Insert: {
+          already_have?: Json
+          created_at?: string
+          example_titles?: Json
+          fit_note?: string | null
+          id?: string
+          need_to_build?: Json
+          position?: number
+          required_skills?: Json
+          role: string
+          selected?: boolean
+          user_id: string
+          why_fit?: string | null
+        }
+        Update: {
+          already_have?: Json
+          created_at?: string
+          example_titles?: Json
+          fit_note?: string | null
+          id?: string
+          need_to_build?: Json
+          position?: number
+          required_skills?: Json
+          role?: string
+          selected?: boolean
+          user_id?: string
+          why_fit?: string | null
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           content: string
@@ -154,6 +199,56 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      readiness_snapshots: {
+        Row: {
+          blockers: Json
+          breakdown: Json
+          created_at: string
+          id: string
+          method_version: string
+          next_action: string | null
+          overall: number
+          stage: string | null
+          target_job_id: string | null
+          target_role: string | null
+          user_id: string
+        }
+        Insert: {
+          blockers?: Json
+          breakdown?: Json
+          created_at?: string
+          id?: string
+          method_version?: string
+          next_action?: string | null
+          overall?: number
+          stage?: string | null
+          target_job_id?: string | null
+          target_role?: string | null
+          user_id: string
+        }
+        Update: {
+          blockers?: Json
+          breakdown?: Json
+          created_at?: string
+          id?: string
+          method_version?: string
+          next_action?: string | null
+          overall?: number
+          stage?: string | null
+          target_job_id?: string | null
+          target_role?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "readiness_snapshots_target_job_id_fkey"
+            columns: ["target_job_id"]
+            isOneToOne: false
+            referencedRelation: "target_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       resume_analyses: {
         Row: {
@@ -319,6 +414,98 @@ export type Database = {
         }
         Relationships: []
       }
+      skill_evidence: {
+        Row: {
+          created_at: string
+          detail: string | null
+          id: string
+          skill_name: string
+          source: string
+          strength: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          detail?: string | null
+          id?: string
+          skill_name: string
+          source?: string
+          strength?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          detail?: string | null
+          id?: string
+          skill_name?: string
+          source?: string
+          strength?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      skill_gaps: {
+        Row: {
+          action: string | null
+          created_at: string
+          evidence: string | null
+          id: string
+          position: number
+          priority: string
+          proof_task: string | null
+          required_level: string | null
+          skill: string
+          status: string
+          target_job_id: string | null
+          updated_at: string
+          user_id: string
+          why_it_matters: string | null
+        }
+        Insert: {
+          action?: string | null
+          created_at?: string
+          evidence?: string | null
+          id?: string
+          position?: number
+          priority?: string
+          proof_task?: string | null
+          required_level?: string | null
+          skill: string
+          status?: string
+          target_job_id?: string | null
+          updated_at?: string
+          user_id: string
+          why_it_matters?: string | null
+        }
+        Update: {
+          action?: string | null
+          created_at?: string
+          evidence?: string | null
+          id?: string
+          position?: number
+          priority?: string
+          proof_task?: string | null
+          required_level?: string | null
+          skill?: string
+          status?: string
+          target_job_id?: string | null
+          updated_at?: string
+          user_id?: string
+          why_it_matters?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skill_gaps_target_job_id_fkey"
+            columns: ["target_job_id"]
+            isOneToOne: false
+            referencedRelation: "target_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       skills: {
         Row: {
           category: string
@@ -337,6 +524,45 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+        }
+        Relationships: []
+      }
+      target_jobs: {
+        Row: {
+          company: string | null
+          created_at: string
+          description: string
+          id: string
+          is_active: boolean
+          parsed: Json
+          source_url: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          is_active?: boolean
+          parsed?: Json
+          source_url?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          is_active?: boolean
+          parsed?: Json
+          source_url?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -374,6 +600,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      weekly_goals: {
+        Row: {
+          completed: boolean
+          created_at: string
+          detail: string | null
+          evidence_created: string | null
+          id: string
+          linked_skill: string | null
+          position: number
+          title: string
+          updated_at: string
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          completed?: boolean
+          created_at?: string
+          detail?: string | null
+          evidence_created?: string | null
+          id?: string
+          linked_skill?: string | null
+          position?: number
+          title: string
+          updated_at?: string
+          user_id: string
+          week_start?: string
+        }
+        Update: {
+          completed?: boolean
+          created_at?: string
+          detail?: string | null
+          evidence_created?: string | null
+          id?: string
+          linked_skill?: string | null
+          position?: number
+          title?: string
+          updated_at?: string
+          user_id?: string
+          week_start?: string
+        }
+        Relationships: []
       }
     }
     Views: {
