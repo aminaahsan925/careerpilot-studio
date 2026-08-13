@@ -20,9 +20,12 @@ export type Database = {
           company: string
           created_at: string
           id: string
+          interview_at: string | null
           job_url: string | null
           location: string | null
           notes: string | null
+          outcome: string | null
+          outcome_recorded_at: string | null
           role_title: string
           status: string
           updated_at: string
@@ -33,9 +36,12 @@ export type Database = {
           company: string
           created_at?: string
           id?: string
+          interview_at?: string | null
           job_url?: string | null
           location?: string | null
           notes?: string | null
+          outcome?: string | null
+          outcome_recorded_at?: string | null
           role_title: string
           status?: string
           updated_at?: string
@@ -46,9 +52,12 @@ export type Database = {
           company?: string
           created_at?: string
           id?: string
+          interview_at?: string | null
           job_url?: string | null
           location?: string | null
           notes?: string | null
+          outcome?: string | null
+          outcome_recorded_at?: string | null
           role_title?: string
           status?: string
           updated_at?: string
@@ -375,7 +384,9 @@ export type Database = {
           courses: Json
           created_at: string
           description: string | null
+          evidence_created: string | null
           id: string
+          outcome: string | null
           position: number
           project: string | null
           skills: Json
@@ -383,13 +394,16 @@ export type Database = {
           title: string
           updated_at: string
           user_id: string
+          why: string | null
         }
         Insert: {
           completed?: boolean
           courses?: Json
           created_at?: string
           description?: string | null
+          evidence_created?: string | null
           id?: string
+          outcome?: string | null
           position?: number
           project?: string | null
           skills?: Json
@@ -397,13 +411,16 @@ export type Database = {
           title: string
           updated_at?: string
           user_id: string
+          why?: string | null
         }
         Update: {
           completed?: boolean
           courses?: Json
           created_at?: string
           description?: string | null
+          evidence_created?: string | null
           id?: string
+          outcome?: string | null
           position?: number
           project?: string | null
           skills?: Json
@@ -411,6 +428,7 @@ export type Database = {
           title?: string
           updated_at?: string
           user_id?: string
+          why?: string | null
         }
         Relationships: []
       }
@@ -610,6 +628,7 @@ export type Database = {
           id: string
           linked_skill: string | null
           position: number
+          status: string
           title: string
           updated_at: string
           user_id: string
@@ -623,6 +642,7 @@ export type Database = {
           id?: string
           linked_skill?: string | null
           position?: number
+          status?: string
           title: string
           updated_at?: string
           user_id: string
@@ -636,6 +656,7 @@ export type Database = {
           id?: string
           linked_skill?: string | null
           position?: number
+          status?: string
           title?: string
           updated_at?: string
           user_id?: string
