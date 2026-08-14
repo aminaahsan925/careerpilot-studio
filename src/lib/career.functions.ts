@@ -4,7 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const text = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 
-/** Career State + the latest persisted diagnosis, in one call. */
+/** Career State summary + the latest persisted diagnosis, in one call. */
 export const getCareerOverview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -14,8 +14,47 @@ export const getCareerOverview = createServerFn({ method: "GET" })
       buildCareerState(context.supabase, context.userId),
       loadLatestDiagnosis(context.supabase, context.userId),
     ]);
-    return { state, diagnosis };
+
+    const requiredSkills = Array.isArray(state.targetJob?.parsed?.["required_skills"])
+      ? (state.targetJob.parsed["required_skills"] as unknown[])
+          .map((v) => String(v))
+          .slice(0, 20)
+      : [];
+
+    return {
+      diagnosis,
+      profileName: [state.profile.firstName, state.profile.lastName].filter(Boolean).join(" "),
+      targetRole: state.targetRole,
+      targetIndustry: state.targetIndustry,
+      targetJob: state.targetJob
+        ? {
+            title: state.targetJob.title,
+            company: state.targetJob.company,
+            requiredSkills,
+          }
+        : null,
+      hasResume: state.resume.hasResume,
+      skills: state.skills.map((s) => ({
+        name: s.name,
+        proficiency: s.proficiency,
+        evidenceStrength: s.evidenceStrength,
+        sources: s.sources.map((x) => String(x)),
+      })),
+      gaps: state.gaps.map((g) => ({
+        skill: g.skill,
+        status: String(g.status),
+        priority: String(g.priority),
+        evidence: g.evidence,
+        action: g.action,
+        proofTask: g.proofTask,
+        whyItMatters: g.whyItMatters,
+      })),
+      readiness: state.readiness
+        ? { overall: state.readiness.overall, stage: state.readiness.stage }
+        : null,
+    };
   });
+
 
 /** Runs (or re-runs) the Career Gap → Action engine. */
 export const runDiagnosis = createServerFn({ method: "POST" })
