@@ -65,6 +65,74 @@ export type Database = {
         }
         Relationships: []
       }
+      career_diagnoses: {
+        Row: {
+          blockers: Json
+          created_at: string
+          evidence_summary: Json
+          id: string
+          next_best_action: Json
+          priorities: Json
+          progress_note: string | null
+          readiness_breakdown: Json
+          readiness_overall: number | null
+          sequence: Json
+          stage: string | null
+          strengths: Json
+          target_job_id: string | null
+          target_job_label: string | null
+          target_role: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          blockers?: Json
+          created_at?: string
+          evidence_summary?: Json
+          id?: string
+          next_best_action?: Json
+          priorities?: Json
+          progress_note?: string | null
+          readiness_breakdown?: Json
+          readiness_overall?: number | null
+          sequence?: Json
+          stage?: string | null
+          strengths?: Json
+          target_job_id?: string | null
+          target_job_label?: string | null
+          target_role?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          blockers?: Json
+          created_at?: string
+          evidence_summary?: Json
+          id?: string
+          next_best_action?: Json
+          priorities?: Json
+          progress_note?: string | null
+          readiness_breakdown?: Json
+          readiness_overall?: number | null
+          sequence?: Json
+          stage?: string | null
+          strengths?: Json
+          target_job_id?: string | null
+          target_job_label?: string | null
+          target_role?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "career_diagnoses_target_job_id_fkey"
+            columns: ["target_job_id"]
+            isOneToOne: false
+            referencedRelation: "target_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       career_goals: {
         Row: {
           created_at: string
