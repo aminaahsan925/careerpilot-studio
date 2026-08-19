@@ -121,6 +121,7 @@ export function useUploadAndAnalyze() {
       queryClient.invalidateQueries({ queryKey: ["latest-resume"] });
       queryClient.invalidateQueries({ queryKey: ["latest-analysis"] });
       queryClient.invalidateQueries({ queryKey: ["current-user"] });
+      queryClient.invalidateQueries({ queryKey: ["career-overview"] });
     },
   });
 }
