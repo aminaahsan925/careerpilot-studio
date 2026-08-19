@@ -7,12 +7,9 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
-
-import appCss from "../styles.css?url";
-import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
-
+import appCss from "../styles.css?url";
+import { useEffect, type ReactNode } from "react";
 
 function NotFoundComponent() {
   return (
@@ -40,7 +37,9 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
   useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    // Keep production error handling local to the app. Lovable-specific
+    // editor telemetry is intentionally not used outside the Lovable editor.
+    console.error("CareerPilot route error:", error);
   }, [error]);
 
   return (
@@ -132,4 +131,3 @@ function RootComponent() {
     </QueryClientProvider>
   );
 }
-
