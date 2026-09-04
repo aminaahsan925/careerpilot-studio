@@ -1,0 +1,8 @@
+{
+  "functions": {
+    ".output/server/index.mjs": { "runtime": "nodejs18.x" }
+  },
+  "routes": [
+    { "src": "/(.*)", "dest": "/.output/server/index.mjs" }
+  ]
+}
