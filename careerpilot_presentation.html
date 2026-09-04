@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CareerPilot AI - Pitch Deck</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        @page {
+            size: 1920px 1080px;
+            margin: 0;
+        }
+        body {
+            margin: 0;
+            background-color: #09090b; /* Obsidian Black */
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+        .slide {
+            width: 1920px;
+            height: 1080px;
+            page-break-after: always;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            box-sizing: border-box;
+            padding: 100px 160px;
+            background-color: #09090b;
+        }
+        /* Glow effects */
+        .glow-tc {
+            position: absolute;
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, rgba(200,90,50,0.15) 0%, rgba(9,9,11,0) 70%);
+            top: -200px;
+            right: -200px;
+            z-index: 0;
+            pointer-events: none;
+        }
+        .glow-gold {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(234,179,8,0.1) 0%, rgba(9,9,11,0) 70%);
+            bottom: -100px;
+            left: -100px;
+            z-index: 0;
+            pointer-events: none;
+        }
+        .content-wrapper {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            padding: 48px;
+            backdrop-filter: blur(12px);
+        }
+        .text-terracotta { color: #c85a32; }
+        .text-gold { color: #eab308; }
+        .border-terracotta { border-color: #c85a32; }
+        
+        .slide-number {
+            position: absolute;
+            bottom: 40px;
+            right: 60px;
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.3);
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SLIDE 1: TITLE -->
+    <div class="slide">
+        <div class="glow-tc"></div>
+        <div class="glow-gold"></div>
+        <div class="content-wrapper justify-center items-center text-center">
+            <div class="inline-block px-4 py-1.5 rounded-full border border-terracotta text-terracotta text-sm font-semibold tracking-widest uppercase mb-8">
+                Alibaba Cloud Global AI Hackathon
+            </div>
+            <h1 class="text-8xl font-extrabold tracking-tight mb-8">
+                CareerPilot <span class="text-terracotta">AI</span>
+            </h1>
+            <h2 class="text-4xl text-gray-300 font-light mb-12">
+                The Executive Career Cockpit & Hiring Reality Engine
+            </h2>
+            <p class="text-2xl text-gold font-medium max-w-3xl mx-auto">
+                Solving the 75% ATS rejection rate for software engineers through empirical market data and deterministic AI.
+            </p>
+        </div>
+        <div class="slide-number">1 / 10</div>
+    </div>
+
+    <!-- SLIDE 2: THE PROBLEM -->
+    <div class="slide">
+        <div class="glow-tc" style="top: auto; bottom: -200px; left: -200px;"></div>
+        <div class="content-wrapper">
+            <h2 class="text-terracotta text-2xl font-bold tracking-widest uppercase mb-4">The Market Problem</h2>
+            <h1 class="text-6xl font-bold mb-16">The Harsh Hiring Reality</h1>
+            
+            <div class="grid grid-cols-2 gap-12 h-full items-center">
+                <div class="glass-panel text-center p-16">
+                    <div class="text-8xl font-black text-white mb-6">75<span class="text-terracotta">%</span></div>
+                    <h3 class="text-3xl font-semibold mb-4">Silent Rejection Rate</h3>
+                    <p class="text-xl text-gray-400">Of talented software engineering candidates are filtered out by ATS algorithms before a human ever reviews their resume.</p>
+                </div>
+                <div class="space-y-8">
+                    <div class="glass-panel">
+                        <h3 class="text-2xl font-bold mb-2">Blind Applications</h3>
+                        <p class="text-lg text-gray-400">Candidates apply without knowing what specific non-negotiable skills employers actually require.</p>
+                    </div>
+                    <div class="glass-panel border-terracotta border-opacity-30">
+                        <h3 class="text-2xl font-bold text-terracotta mb-2">Generic Portfolios</h3>
+                        <p class="text-lg text-gray-400">Building standard to-do apps instead of enterprise-grade proof projects that pass engineering bar raisers.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="slide-number">2 / 10</div>
+    </div>
+
+    <!-- SLIDE 3: THE SOLUTION -->
+    <div class="slide">
+        <div class="glow-gold"></div>
+        <div class="content-wrapper">
+            <h2 class="text-terracotta text-2xl font-bold tracking-widest uppercase mb-4">The Solution</h2>
+            <h1 class="text-6xl font-bold mb-16">4 Core Intelligence Engines</h1>
+            
+            <div class="grid grid-cols-2 gap-8">
+                <div class="glass-panel relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-2 h-full bg-terracotta"></div>
+                    <div class="text-gold font-bold text-xl mb-2">Engine 01</div>
+                    <h3 class="text-3xl font-bold mb-4">Recruiter Audit & Diagnosis</h3>
+                    <p class="text-gray-400 text-lg">Performs employer-specific audits (Google, Devsinc, etc.) to calculate Rejection Probability % and map Capability Gap Matrices.</p>
+                </div>
+                
+                <div class="glass-panel relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-2 h-full bg-gold"></div>
+                    <div class="text-gold font-bold text-xl mb-2">Engine 02</div>
+                    <h3 class="text-3xl font-bold mb-4">5-Stage Flight Plan</h3>
+                    <p class="text-gray-400 text-lg">Converts diagnostic findings into a 5-rail execution deck: Pre-Flight → Engine Room → Proof Cockpit → Telemetry → Launch.</p>
+                </div>
+                
+                <div class="glass-panel relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-2 h-full bg-white opacity-20"></div>
+                    <div class="text-gold font-bold text-xl mb-2">Engine 03</div>
+                    <h3 class="text-3xl font-bold mb-4">Future Tech Radar (2030)</h3>
+                    <p class="text-gray-400 text-lg">Interactive velocity radar tracking emerging AI models and tech investments to prevent candidates from learning obsolete tools.</p>
+                </div>
+                
+                <div class="glass-panel relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-2 h-full bg-gray-500"></div>
+                    <div class="text-gold font-bold text-xl mb-2">Engine 04</div>
+                    <h3 class="text-3xl font-bold mb-4">Dynamic Roadmap V2</h3>
+                    <p class="text-gray-400 text-lg">Parses resumes via unpdf & Groq Llama-3 70B for bullet-point rewrites and 1-click sync of proof projects into daily milestones.</p>
+                </div>
+            </div>
+        </div>
+        <div class="slide-number">3 / 10</div>
+    </div>
+
+    <!-- SLIDE 4: ENGINE 1 -->
+    <div class="slide">
+        <div class="glow-tc"></div>
+        <div class="content-wrapper">
+            <h2 class="text-terracotta text-2xl font-bold tracking-widest uppercase mb-4">Engine 01</h2>
+            <h1 class="text-6xl font-bold mb-12">Recruiter Audit & Diagnosis</h1>
+            
+            <div class="flex gap-12">
+                <div class="w-1/3 glass-panel flex flex-col justify-center items-center text-center">
+                    <div class="text-7xl font-black text-red-500 mb-4">84%</div>
+                    <h3 class="text-2xl font-semibold mb-2">Rejection Probability</h3>
+                    <p class="text-gray-400">Calculated instantly against real employer hiring matrices.</p>
+                </div>
+                <div class="w-2/3 flex flex-col justify-center space-y-6">
+                    <div class="p-6 border border-white/10 rounded-xl bg-white/5">
+                        <h4 class="text-xl font-bold text-red-400 mb-2">1. Missing Non-Negotiables</h4>
+                        <p class="text-gray-300">Flags missing hard requirements (e.g., 'Requires Next.js SSR experience, profile only shows React SPA').</p>
+                    </div>
+                    <div class="p-6 border border-white/10 rounded-xl bg-white/5">
+                        <h4 class="text-xl font-bold text-amber-400 mb-2">2. Project Deficiencies</h4>
+                        <p class="text-gray-300">Identifies gaps in portfolio architecture (e.g., 'Missing complex state management or Auth implementation').</p>
+                    </div>
+                    <div class="p-6 border border-white/10 rounded-xl bg-white/5">
+                        <h4 class="text-xl font-bold text-blue-400 mb-2">3. ATS Flaws</h4>
+                        <p class="text-gray-300">Detects formatting and keyword absence that cause silent algorithmic rejection.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="slide-number">4 / 10</div>
+    </div>
+
+    <!-- SLIDE 5: ENGINE 2 -->
+    <div class="slide">
+        <div class="glow-gold"></div>
+        <div class="content-wrapper">
+            <h2 class="text-terracotta text-2xl font-bold tracking-widest uppercase mb-4">Engine 02</h2>
+            <h1 class="text-6xl font-bold mb-16">5-Stage Flight Plan Cockpit</h1>
+            
+            <div class="flex justify-between items-start w-full relative">
+                <!-- Connecting Line -->
+                <div class="absolute top-12 left-10 right-10 h-1 bg-white/10 z-0"></div>
+                
+                <div class="relative z-10 w-1/5 px-4 text-center">
+                    <div class="w-24 h-24 rounded-full bg-[#09090b] border-4 border-gray-600 flex items-center justify-center text-3xl font-bold text-gray-400 mx-auto mb-6">1</div>
+                    <h3 class="text-xl font-bold mb-3">Pre-Flight<br>Diagnostic</h3>
+                    <p class="text-sm text-gray-400">Baseline capability assessment</p>
+                </div>
+                <div class="relative z-10 w-1/5 px-4 text-center">
+                    <div class="w-24 h-24 rounded-full bg-[#09090b] border-4 border-amber-600 flex items-center justify-center text-3xl font-bold text-amber-500 mx-auto mb-6">2</div>
+                    <h3 class="text-xl font-bold mb-3">Engine Room<br>Refactor</h3>
+                    <p class="text-sm text-gray-400">Skill upgrading & gap closing</p>
+                </div>
+                <div class="relative z-10 w-1/5 px-4 text-center">
+                    <div class="w-24 h-24 rounded-full bg-[#09090b] border-4 border-terracotta flex items-center justify-center text-3xl font-bold text-terracotta mx-auto mb-6">3</div>
+                    <h3 class="text-xl font-bold mb-3">Proof<br>Cockpit</h3>
+                    <p class="text-sm text-gray-400">Building prescribed projects</p>
+                </div>
+                <div class="relative z-10 w-1/5 px-4 text-center">
+                    <div class="w-24 h-24 rounded-full bg-[#09090b] border-4 border-blue-600 flex items-center justify-center text-3xl font-bold text-blue-500 mx-auto mb-6">4</div>
+                    <h3 class="text-xl font-bold mb-3">Telemetry<br>Audit</h3>
+                    <p class="text-sm text-gray-400">Resume & ATS optimization</p>
+                </div>
+                <div class="relative z-10 w-1/5 px-4 text-center">
+                    <div class="w-24 h-24 rounded-full bg-[#09090b] border-4 border-green-600 flex items-center justify-center text-3xl font-bold text-green-500 mx-auto mb-6">5</div>
+                    <h3 class="text-xl font-bold mb-3">Readiness<br>Launch</h3>
+                    <p class="text-sm text-gray-400">Interview prep & market entry</p>
+                </div>
+            </div>
+            
+            <div class="mt-16 glass-panel text-center">
+                <p class="text-2xl text-gray-300">Moves candidates from <span class="text-terracotta font-bold">"What do I do?"</span> to a deterministic, step-by-step engineering roadmap.</p>
+            </div>
+        </div>
+        <div class="slide-number">5 / 10</div>
+    </div>
+
+    <!-- SLIDE 6: ENGINE 3 -->
+    <div class="slide">
+        <div class="glow-tc" style="top: 50%; left: 50%; transform: translate(-50%, -50%); width: 1000px; height: 1000px;"></div>
+        <div class="content-wrapper">
+            <h2 class="text-terracotta text-2xl font-bold tracking-widest uppercase mb-4">Engine 03</h2>
+            <h1 class="text-6xl font-bold mb-12">Future Tech Radar (2030)</h1>
+            
+            <div class="grid grid-cols-2 gap-12 items-center h-full">
+                <div class="space-y-8">
+                    <p class="text-2xl text-gray-300 leading-relaxed">
+                        An interactive market velocity radar that tracks emerging tech vectors to prevent candidates from learning obsolete frameworks.
+                    </p>
+                    <ul class="space-y-6">
+                        <li class="flex items-start">
+                            <div class="w-3 h-3 rounded-full bg-terracotta mt-2 mr-4"></div>
+                            <div>
+                                <h4 class="text-xl font-bold text-white">AI Model Tracking</h4>
+                                <p class="text-gray-400">LLMs, SLMs, Agentic Frameworks velocity.</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start">
+                            <div class="w-3 h-3 rounded-full bg-gold mt-2 mr-4"></div>
+                            <div>
+                                <h4 class="text-xl font-bold text-white">Regional Investment</h4>
+                                <p class="text-gray-400">Tracks where capital is flowing (US, Gulf, EU, Asia).</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start">
+                            <div class="w-3 h-3 rounded-full bg-blue-500 mt-2 mr-4"></div>
+                            <div>
+                                <h4 class="text-xl font-bold text-white">High-Growth Sectors</h4>
+                                <p class="text-gray-400">FinTech, HealthTech, Spatial Computing demand mapping.</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="glass-panel h-[500px] flex items-center justify-center border-terracotta/40 relative">
+                    <!-- Fake Radar Visual -->
+                    <div class="absolute inset-0 flex items-center justify-center opacity-30">
+                        <div class="w-[400px] h-[400px] rounded-full border border-terracotta absolute"></div>
+                        <div class="w-[300px] h-[300px] rounded-full border border-terracotta absolute"></div>
+                        <div class="w-[200px] h-[200px] rounded-full border border-terracotta absolute"></div>
+                        <div class="w-[100px] h-[100px] rounded-full border border-terracotta absolute"></div>
+                        <div class="w-[400px] h-[1px] bg-terracotta absolute"></div>
+                        <div class="w-[1px] h-[400px] bg-terracotta absolute"></div>
+                    </div>
+                    <div class="relative z-10 text-center">
+                        <h3 class="text-3xl font-bold text-terracotta tracking-widest uppercase">Live Telemetry</h3>
+                        <p class="text-gold mt-2">Aggregating Global Tech Signals</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="slide-number">6 / 10</div>
+    </div>
+
+    <!-- SLIDE 7: ARCHITECTURE -->
+    <div class="slide">
+        <div class="glow-gold"></div>
+        <div class="content-wrapper">
+            <h2 class="text-terracotta text-2xl font-bold tracking-widest uppercase mb-4">Technical Foundation</h2>
+            <h1 class="text-6xl font-bold mb-16">Enterprise Architecture</h1>
+            
+            <div class="grid grid-cols-3 gap-8">
+                <div class="glass-panel flex flex-col items-center justify-center text-center p-12">
+                    <h3 class="text-2xl font-bold text-white mb-4">Frontend</h3>
+                    <ul class="text-lg text-gray-400 space-y-3">
+                        <li>React 19</li>
+                        <li>TanStack Start (SSR)</li>
+                        <li>Tailwind CSS v4</li>
+                        <li>Framer Motion</li>
+                    </ul>
+                </div>
+                
+                <div class="glass-panel flex flex-col items-center justify-center text-center p-12 border-terracotta/30">
+                    <h3 class="text-2xl font-bold text-terracotta mb-4">AI Engine</h3>
+                    <ul class="text-lg text-gray-400 space-y-3">
+                        <li>Groq Cloud API</li>
+                        <li>Llama-3 70B Model</li>
+                        <li>Deterministic Fallbacks</li>
+                        <li>Sub-second Inference</li>
+                    </ul>
+                </div>
+                
+                <div class="glass-panel flex flex-col items-center justify-center text-center p-12">
+                    <h3 class="text-2xl font-bold text-white mb-4">Backend</h3>
+                    <ul class="text-lg text-gray-400 space-y-3">
+                        <li>Supabase PostgreSQL</li>
+                        <li>Row Level Security</li>
+                        <li>Server-Side Functions</li>
+                        <li>Edge Ready (Nitro)</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="mt-12 text-center">
+                <div class="inline-flex items-center space-x-3 bg-green-900/30 border border-green-500/50 rounded-full px-6 py-3">
+                    <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                    <span class="text-green-400 font-bold text-xl tracking-wide">0 TypeScript Errors. Production Ready.</span>
+                </div>
+            </div>
+        </div>
+        <div class="slide-number">7 / 10</div>
+    </div>
+
+    <!-- SLIDE 8: BUSINESS MODEL -->
+    <div class="slide">
+        <div class="glow-tc" style="left: -200px; bottom: -200px; top: auto; right: auto;"></div>
+        <div class="content-wrapper">
+            <h2 class="text-terracotta text-2xl font-bold tracking-widest uppercase mb-4">Go To Market</h2>
+            <h1 class="text-6xl font-bold mb-16">Business Viability</h1>
+            
+            <div class="grid grid-cols-2 gap-12">
+                <div class="glass-panel bg-gradient-to-br from-white/5 to-transparent">
+                    <h3 class="text-3xl font-bold text-white mb-6">B2C Freemium</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-start">
+                            <span class="text-gold font-bold w-24">Free:</span>
+                            <span class="text-gray-300">Basic ATS scan & generic roadmap generation.</span>
+                        </div>
+                        <div class="flex items-start">
+                            <span class="text-terracotta font-bold w-24">Pro:</span>
+                            <span class="text-gray-300">Company-specific recruiter audits, advanced architectural blueprints, and full Flight Plan access ($15/mo).</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="glass-panel bg-gradient-to-br from-terracotta/10 to-transparent border-terracotta/30">
+                    <h3 class="text-3xl font-bold text-white mb-6">B2B Enterprise</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-start">
+                            <span class="text-gold font-bold w-32">Universities:</span>
+                            <span class="text-gray-300">Licensing for Career Centers to audit graduating cohorts.</span>
+                        </div>
+                        <div class="flex items-start">
+                            <span class="text-terracotta font-bold w-32">Bootcamps:</span>
+                            <span class="text-gray-300">API integration to ensure curriculum matches real-time hiring demands.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="slide-number">8 / 10</div>
+    </div>
+    
+    <!-- SLIDE 9: WHY WE WILL WIN -->
+    <div class="slide">
+        <div class="glow-gold"></div>
+        <div class="content-wrapper">
+            <h2 class="text-terracotta text-2xl font-bold tracking-widest uppercase mb-4">Competitive Edge</h2>
+            <h1 class="text-6xl font-bold mb-16">Why CareerPilot AI Wins</h1>
+            
+            <div class="space-y-8">
+                <div class="glass-panel flex items-center p-8">
+                    <div class="w-16 h-16 rounded-full bg-terracotta/20 flex items-center justify-center mr-8 flex-shrink-0">
+                        <span class="text-3xl">🎯</span>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-bold mb-2">Deterministic AI + Empirical Data</h3>
+                        <p class="text-gray-400 text-lg">Unlike standard ChatGPT wrappers, our engine is grounded in hardcoded Company Truth datasets (Google, Devsinc, Systems Limited) for exact gap mapping.</p>
+                    </div>
+                </div>
+                
+                <div class="glass-panel flex items-center p-8">
+                    <div class="w-16 h-16 rounded-full bg-gold/20 flex items-center justify-center mr-8 flex-shrink-0">
+                        <span class="text-3xl">⚡</span>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-bold mb-2">Groq-Powered Speed</h3>
+                        <p class="text-gray-400 text-lg">Utilizing Groq's LPU inference, we generate comprehensive 5-stage roadmaps and ATS audits in milliseconds, providing real-time UX.</p>
+                    </div>
+                </div>
+                
+                <div class="glass-panel flex items-center p-8">
+                    <div class="w-16 h-16 rounded-full bg-blue-500/20 flex items-center justify-center mr-8 flex-shrink-0">
+                        <span class="text-3xl">🛠️</span>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-bold mb-2">Actionable Execution, Not Just Advice</h3>
+                        <p class="text-gray-400 text-lg">We don't just tell candidates they failed. The Flight Plan provides exact GitHub architectural templates to build the proof they are missing.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="slide-number">9 / 10</div>
+    </div>
+
+    <!-- SLIDE 10: CONCLUSION -->
+    <div class="slide">
+        <div class="glow-tc" style="top: 50%; left: 50%; transform: translate(-50%, -50%);"></div>
+        <div class="content-wrapper justify-center items-center text-center">
+            <h2 class="text-3xl text-gray-300 font-light mb-8">
+                Alibaba Cloud Global AI Hackathon
+            </h2>
+            <h1 class="text-8xl font-black tracking-tight mb-12">
+                Stop <span class="text-gray-500 line-through decoration-terracotta">Guessing.</span><br>
+                Start <span class="text-gold">Piloting.</span>
+            </h1>
+            
+            <div class="glass-panel inline-block">
+                <p class="text-2xl font-bold text-white mb-2">CareerPilot AI</p>
+                <p class="text-terracotta">Ready for Deployment.</p>
+            </div>
+        </div>
+        <div class="slide-number">10 / 10</div>
+    </div>
+
+</body>
+</html>
