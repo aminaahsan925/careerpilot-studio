@@ -8,8 +8,8 @@ export function AppLayout({
   subtitle,
   children,
 }: {
-  title: React.ReactNode;
-  subtitle: string;
+  title?: React.ReactNode;
+  subtitle?: string;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -35,43 +35,49 @@ export function AppLayout({
       ) : null}
 
       <div className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <header className="flex flex-wrap items-start gap-4">
-          <button
-            type="button"
-            aria-label="Open navigation"
-            onClick={() => setOpen(true)}
-            className="mt-1 rounded-lg border border-border bg-card p-2 lg:hidden"
-          >
-            <Menu className="h-4 w-4" />
-          </button>
-
-          <div className="min-w-0 flex-1">
-            <h1 className="text-[26px] font-bold tracking-[-0.02em] text-foreground">{title}</h1>
-            <p className="mt-1 text-[13.5px] text-muted-foreground">{subtitle}</p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <label className="hidden items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 shadow-card md:flex md:w-[300px] lg:w-[340px]">
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <input
-                type="search"
-                placeholder="Search anything..."
-                className="w-full bg-transparent text-[13.5px] outline-none placeholder:text-muted-foreground"
-              />
-              <span className="rounded text-[11px] text-muted-foreground">⌘K</span>
-            </label>
+        {(title || subtitle) && (
+          <header className="flex flex-wrap items-start gap-4">
             <button
               type="button"
-              aria-label="Notifications"
-              className="relative rounded-xl border border-border bg-card p-2.5 shadow-card transition-transform hover:-translate-y-0.5"
+              aria-label="Open navigation"
+              onClick={() => setOpen(true)}
+              className="mt-1 rounded-lg border border-border bg-card p-2 lg:hidden"
             >
-              <Bell className="h-4 w-4" />
-              <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-terracotta" />
+              <Menu className="h-4 w-4" />
             </button>
-          </div>
-        </header>
 
-        <main className="mt-6">{children}</main>
+            <div className="min-w-0 flex-1">
+              {title && (
+                <h1 className="text-[26px] font-bold tracking-[-0.02em] text-foreground">{title}</h1>
+              )}
+              {subtitle && (
+                <p className="mt-1 text-[13.5px] text-muted-foreground">{subtitle}</p>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <label className="hidden items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 shadow-card md:flex md:w-[300px] lg:w-[340px]">
+                <Search className="h-4 w-4 text-muted-foreground" />
+                <input
+                  type="search"
+                  placeholder="Search anything..."
+                  className="w-full bg-transparent text-[13.5px] outline-none placeholder:text-muted-foreground"
+                />
+                <span className="rounded text-[11px] text-muted-foreground">⌘K</span>
+              </label>
+              <button
+                type="button"
+                aria-label="Notifications"
+                className="relative rounded-xl border border-border bg-card p-2.5 shadow-card transition-transform hover:-translate-y-0.5"
+              >
+                <Bell className="h-4 w-4" />
+                <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-terracotta" />
+              </button>
+            </div>
+          </header>
+        )}
+
+        <main className={title || subtitle ? "mt-6" : ""}>{children}</main>
       </div>
     </div>
   );

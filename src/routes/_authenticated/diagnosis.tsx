@@ -1,458 +1,986 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { motion } from "motion/react";
-import { AlertTriangle, ArrowRight, CheckCircle2, Loader2, Target } from "lucide-react";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import {
+  AlertCircle,
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  BarChart3,
+  Building2,
+  Check,
+  CheckCircle2,
+  ChevronRight,
+  Code2,
+  Compass,
+  Cpu,
+  FileCheck,
+  Flame,
+  Globe2,
+  Layers,
+  Lightbulb,
+  Loader2,
+  LockKeyhole,
+  Map,
+  RefreshCw,
+  Rocket,
+  Search,
+  ShieldAlert,
+  ShieldCheck,
+  Sparkles,
+  Target,
+  Terminal,
+  TrendingUp,
+  Wrench,
+  X,
+  Zap,
+} from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 
 import { AppLayout } from "@/components/app/AppLayout";
-import { useCareerOverview, useRunDiagnosis, useSetCareerTarget } from "@/data/career";
-import { useGenerateRoadmap } from "@/data/roadmap";
+import { CareerIllustration } from "@/components/ui/career-illustration";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useCareerOverview, useRunDiagnosis, type CareerOverview } from "@/data/career";
+import { FEATURED_COMPANIES, matchCompanyTruth } from "@/data/company-truth";
+import { useGenerateRoadmapV2 } from "@/data/roadmap-v2";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/diagnosis")({
   head: () => ({
     meta: [
-      { title: "Career Diagnosis — CareerPilot AI" },
+      { title: "Company-Specific Career Diagnosis — CareerPilot AI" },
       {
         name: "description",
-        content:
-          "See your real career stage, top blockers, readiness and the single next best action toward your target role.",
+        content: "Discover why you are unemployed, what is lacking in your profile, and why specific companies reject you.",
       },
-      { property: "og:title", content: "Career Diagnosis — CareerPilot AI" },
-      {
-        property: "og:description",
-        content: "Honest gap-to-action career diagnosis based on your real profile evidence.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: DiagnosisPage,
 });
 
-function Card({ className, children }: { className?: string; children: React.ReactNode }) {
+/* ------------------------------------------------------------------ */
+/* Scanning Overlay with Aesthetic Concentric Radar Pulse              */
+/* ------------------------------------------------------------------ */
+
+const SCAN_STEPS = [
+  "Querying real-world hiring parameters & company screening filters...",
+  "Auditing candidate skills footprint, projects & verified repository evidence...",
+  "Evaluating non-negotiable tech stack & relational database indexing benchmarks...",
+  "Calculating algorithmic screening test and ATS rejection probability...",
+  "Synthesizing root-cause rejection report & 4-week recovery prescription...",
+];
+
+function ScanningOverlay({ companyName, roleName }: { companyName: string; roleName: string }) {
+  const [currentStep, setCurrentStep] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentStep((prev) => (prev < SCAN_STEPS.length - 1 ? prev + 1 : prev));
+    }, 1100);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: "easeOut" }}
-      className={cn("card-surface p-5", className)}
+      initial={{ opacity: 0, scale: 0.96 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.96 }}
+      className="relative overflow-hidden rounded-3xl border border-terracotta/25 bg-gradient-to-br from-card via-background to-terracotta/10 p-8 text-center sm:p-14 shadow-2xl backdrop-blur-md"
     >
-      {children}
+      {/* Aesthetic glowing background orbs */}
+      <div className="pointer-events-none absolute -top-20 -left-20 h-64 w-64 rounded-full bg-terracotta/15 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-20 -right-20 h-64 w-64 rounded-full bg-clay/20 blur-3xl" />
+
+      {/* Radar Animation Hub */}
+      <div className="relative mx-auto flex h-36 w-36 items-center justify-center">
+        <motion.div
+          animate={{ scale: [1, 2.3], opacity: [0.6, 0] }}
+          transition={{ duration: 2.4, repeat: Infinity, ease: "easeOut" }}
+          className="absolute inset-0 rounded-full bg-terracotta/25"
+        />
+        <motion.div
+          animate={{ scale: [1, 1.7], opacity: [0.7, 0] }}
+          transition={{ duration: 2.4, repeat: Infinity, ease: "easeOut", delay: 0.7 }}
+          className="absolute inset-0 rounded-full bg-terracotta/20"
+        />
+        <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-ink via-neutral-900 to-neutral-800 text-white shadow-2xl border border-terracotta/40">
+          <Building2 className="h-8 w-8 text-terracotta animate-pulse" />
+        </div>
+      </div>
+
+      <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-terracotta/30 bg-terracotta/10 px-4 py-1 text-xs font-bold uppercase tracking-[0.2em] text-terracotta shadow-xs">
+        <Sparkles className="h-3.5 w-3.5 animate-spin text-terracotta" />
+        Live Technical Audit In Progress
+      </div>
+
+      <h2 className="mt-3 font-display text-2xl font-black tracking-tight text-foreground sm:text-3xl">
+        Diagnosing Rejection Risk for <span className="text-terracotta">{roleName}</span> @{" "}
+        <span className="text-foreground underline decoration-terracotta/40 decoration-wavy underline-offset-4">{companyName}</span>
+      </h2>
+
+      <p className="mt-2 text-xs text-muted-foreground max-w-lg mx-auto">
+        Evaluating your profile against real recruiter hiring bars, production requirements, and entry-level filters.
+      </p>
+
+      {/* Step by step terminal audit feed */}
+      <div className="mx-auto mt-8 max-w-lg space-y-2.5 text-left">
+        {SCAN_STEPS.map((stepText, idx) => {
+          const isDone = idx < currentStep;
+          const isCurrent = idx === currentStep;
+          return (
+            <motion.div
+              key={stepText}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: idx <= currentStep ? 1 : 0.35, x: 0 }}
+              className={cn(
+                "flex items-center gap-3 rounded-2xl p-3.5 text-xs transition-all border",
+                isCurrent
+                  ? "border-terracotta/40 bg-card shadow-md font-bold text-foreground"
+                  : isDone
+                  ? "border-emerald-500/20 bg-emerald-50/40 text-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-300"
+                  : "border-transparent bg-secondary/40 text-muted-foreground",
+              )}
+            >
+              {isDone ? (
+                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300">
+                  <Check className="h-3.5 w-3.5" />
+                </div>
+              ) : isCurrent ? (
+                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-terracotta/20 text-terracotta">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                </div>
+              ) : (
+                <div className="h-4 w-4 shrink-0 rounded-full border border-border/80" />
+              )}
+              <span className="truncate flex-1">{stepText}</span>
+            </motion.div>
+          );
+        })}
+      </div>
     </motion.div>
   );
 }
 
-function Label({ children }: { children: React.ReactNode }) {
+/* ------------------------------------------------------------------ */
+/* Step-by-Step Guided Setup Wizard Component                          */
+/* ------------------------------------------------------------------ */
+
+function WizardSetup({
+  targetCompany,
+  targetRole,
+  onRunDiagnosis,
+  isPending,
+}: {
+  targetCompany: string;
+  targetRole: string;
+  onRunDiagnosis: (company: string, role: string) => void;
+  isPending: boolean;
+}) {
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [selectedCompany, setSelectedCompany] = useState(targetCompany || "Systems Limited");
+  const [customCompany, setCustomCompany] = useState("");
+  const [isCustom, setIsCustom] = useState(false);
+  const [role, setRole] = useState(targetRole || "Associate Software Engineer");
+
+  const effectiveCompany = isCustom && customCompany.trim() ? customCompany.trim() : selectedCompany;
+  const matchedTruth = matchCompanyTruth(effectiveCompany);
+
+  const handleStart = () => {
+    onRunDiagnosis(effectiveCompany, role.trim() || "Associate Software Engineer");
+  };
+
   return (
-    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
-      {children}
-    </p>
+    <div className="space-y-6">
+      {/* Wizard Progress Pill Indicator */}
+      <div className="card-surface p-3 sm:p-4">
+        <div className="flex items-center justify-between gap-2 overflow-x-auto">
+          {[
+            { s: 1, title: "1. Target Employer", subtitle: "Select Company", icon: Building2 },
+            { s: 2, title: "2. Target Position", subtitle: "Job Role Title", icon: Target },
+            { s: 3, title: "3. Launch Audit", subtitle: "Rejection Diagnosis", icon: ShieldAlert },
+          ].map(({ s, title, subtitle, icon: Icon }) => {
+            const isCurrent = step === s;
+            const isPassed = step > s;
+            return (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setStep(s as 1 | 2 | 3)}
+                className={cn(
+                  "flex min-w-[150px] flex-1 items-center gap-3 rounded-2xl px-4 py-3 text-left transition-all border",
+                  isCurrent
+                    ? "border-terracotta/40 bg-ink text-white shadow-lg"
+                    : isPassed
+                    ? "border-emerald-500/20 bg-secondary/70 text-foreground hover:bg-secondary"
+                    : "border-transparent text-muted-foreground hover:bg-secondary/40",
+                )}
+              >
+                <div
+                  className={cn(
+                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-bold transition-transform",
+                    isCurrent
+                      ? "bg-terracotta text-white shadow-xs scale-105"
+                      : isPassed
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "bg-secondary text-muted-foreground",
+                  )}
+                >
+                  {isPassed ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-bold leading-tight">{title}</p>
+                  <p className="truncate text-[10px] text-muted-foreground opacity-80">{subtitle}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Step Views */}
+      <AnimatePresence mode="wait">
+        {step === 1 && (
+          <motion.div
+            key="step-1"
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.25 }}
+            className="card-surface p-6 sm:p-8 space-y-6 border-terracotta/15"
+          >
+            <div className="grid gap-6 md:grid-cols-2 items-center">
+              <div>
+                <div className="inline-flex items-center gap-1.5 rounded-md bg-terracotta/10 px-2.5 py-0.5 text-xs font-bold text-terracotta">
+                  <Building2 className="h-3.5 w-3.5" /> Step 1 of 3
+                </div>
+                <h2 className="mt-1 font-display text-xl font-bold text-foreground sm:text-2xl">
+                  Select Target Employer to Inspect
+                </h2>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  Pick a prominent Pakistani/Global software house or type any custom company name.
+                </p>
+                <div className="mt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsCustom(!isCustom)}
+                    className="rounded-xl border-terracotta/30 text-xs font-bold text-terracotta hover:bg-terracotta/10"
+                  >
+                    {isCustom ? "← Choose Featured Employers" : "+ Type Custom Company Name"}
+                  </Button>
+                </div>
+              </div>
+
+              <CareerIllustration badgeText="Diagnose your rejection risk." className="py-0 max-w-[320px] justify-self-center md:justify-self-end" />
+            </div>
+
+            {isCustom ? (
+              <div className="space-y-3 rounded-2xl border border-terracotta/20 bg-gradient-to-br from-card to-terracotta/5 p-6">
+                <Label className="text-xs font-bold uppercase tracking-wider text-terracotta">
+                  Enter Any Company Name
+                </Label>
+                <Input
+                  value={customCompany}
+                  onChange={(e) => setCustomCompany(e.target.value)}
+                  placeholder="e.g. Careem, Devsinc, Folio3, 10x Banking, Arbitsoft, Google..."
+                  className="h-12 rounded-xl text-sm border-border focus:border-terracotta shadow-xs"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  We will perform a live diagnostic audit on real hiring standards for this specific organization.
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {FEATURED_COMPANIES.map((comp) => {
+                  const isSelected = selectedCompany === comp.name;
+                  return (
+                    <button
+                      key={comp.id}
+                      type="button"
+                      onClick={() => setSelectedCompany(comp.name)}
+                      className={cn(
+                        "group relative flex items-start gap-3.5 rounded-2xl border p-4 text-left transition-all",
+                        isSelected
+                          ? "border-terracotta bg-terracotta/5 ring-2 ring-terracotta/40 shadow-md"
+                          : "border-border bg-card hover:border-terracotta/40 hover:shadow-xs",
+                      )}
+                    >
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ink font-extrabold text-xs text-white shadow-xs group-hover:scale-105 transition-transform">
+                        {comp.shortName.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-bold text-foreground">{comp.name}</p>
+                        <p className="truncate text-[11px] text-muted-foreground">{comp.tier}</p>
+                      </div>
+                      {isSelected && (
+                        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-terracotta text-white shadow-xs">
+                          <Check className="h-3 w-3" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="flex items-center justify-between pt-4 border-t border-border">
+              <div className="text-xs text-muted-foreground">
+                Target Selected: <strong className="text-foreground">{effectiveCompany}</strong>
+              </div>
+              <Button
+                className="rounded-xl px-6 font-bold text-xs shadow-md"
+                onClick={() => setStep(2)}
+              >
+                Next: Select Target Position <ArrowRight className="ml-1.5 h-4 w-4" />
+              </Button>
+            </div>
+          </motion.div>
+        )}
+
+        {step === 2 && (
+          <motion.div
+            key="step-2"
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.25 }}
+            className="card-surface p-6 sm:p-8 space-y-6 border-terracotta/15"
+          >
+            <div>
+              <div className="inline-flex items-center gap-1.5 rounded-md bg-terracotta/10 px-2.5 py-0.5 text-xs font-bold text-terracotta">
+                <Target className="h-3.5 w-3.5" /> Step 2 of 3
+              </div>
+              <h2 className="mt-1 font-display text-xl font-bold text-foreground sm:text-2xl">
+                What Exact Position at {effectiveCompany}?
+              </h2>
+              <p className="text-xs text-muted-foreground mt-1">
+                Different job titles trigger drastically different technical screening filters.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold">Target Job Title</Label>
+              <Input
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                placeholder="e.g. Associate Software Engineer, Full Stack MERN, Flutter Developer..."
+                className="h-12 rounded-xl text-sm border-border focus:border-terracotta shadow-xs"
+              />
+            </div>
+
+            <div>
+              <p className="text-xs font-bold text-muted-foreground mb-2.5 uppercase tracking-wider">
+                Popular Role Tracks:
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  "Associate Software Engineer",
+                  "Associate Full-Stack Developer",
+                  "Frontend React / Next.js Engineer",
+                  "Backend (.NET / Java / Node) Engineer",
+                  "Mobile (Flutter / React Native) Developer",
+                  "Python & AI Solutions Engineer",
+                  "Associate SQA & Automation Engineer",
+                ].map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setRole(r)}
+                    className={cn(
+                      "rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all border",
+                      role === r
+                        ? "border-terracotta bg-terracotta text-white shadow-xs"
+                        : "border-border bg-card text-muted-foreground hover:border-terracotta/40 hover:text-foreground",
+                    )}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-4 border-t border-border">
+              <Button variant="ghost" className="rounded-xl text-xs font-bold" onClick={() => setStep(1)}>
+                <ArrowLeft className="mr-1.5 h-4 w-4" /> Back to Employer
+              </Button>
+              <Button className="rounded-xl px-6 font-bold text-xs shadow-md" onClick={() => setStep(3)}>
+                Next: Review & Launch Audit <ArrowRight className="ml-1.5 h-4 w-4" />
+              </Button>
+            </div>
+          </motion.div>
+        )}
+
+        {step === 3 && (
+          <motion.div
+            key="step-3"
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.25 }}
+            className="card-surface p-6 sm:p-8 space-y-6 border-terracotta/20"
+          >
+            {/* Aesthetic Summary Card */}
+            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-ink via-neutral-900 to-neutral-800 p-7 text-white shadow-xl border border-terracotta/30">
+              <div className="pointer-events-none absolute -right-10 -bottom-10 h-44 w-44 rounded-full bg-terracotta/20 blur-2xl" />
+
+              <div className="relative z-10 space-y-4">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-terracotta/20 px-3.5 py-1 text-xs font-bold text-terracotta border border-terracotta/30">
+                  <Sparkles className="h-3.5 w-3.5" /> Step 3 of 3: Ready for Technical Audit
+                </span>
+                <div>
+                  <h2 className="font-display text-2xl font-black tracking-tight sm:text-3xl">
+                    Diagnose Rejection Risk for {role}
+                  </h2>
+                  <p className="mt-1 text-xs text-white/70">
+                    Target Employer: <strong className="text-white underline decoration-terracotta">{effectiveCompany}</strong>
+                  </p>
+                </div>
+
+                <div className="grid gap-3 pt-2 sm:grid-cols-2 text-xs">
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-3.5">
+                    <p className="text-[11px] font-bold text-terracotta uppercase">What We Will Inspect:</p>
+                    <p className="text-white/80 mt-1">Real screening test patterns, ATS keyword filters, and project proof expectations.</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-3.5">
+                    <p className="text-[11px] font-bold text-emerald-400 uppercase">What You Will Get:</p>
+                    <p className="text-white/80 mt-1">Exact reasons for rejection, missing non-negotiables, and a personalized recovery plan.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-4 border-t border-border">
+              <Button variant="ghost" className="rounded-xl text-xs font-bold" onClick={() => setStep(2)}>
+                <ArrowLeft className="mr-1.5 h-4 w-4" /> Change Selection
+              </Button>
+              <Button
+                className="h-12 rounded-xl px-8 font-bold text-xs shadow-lg bg-terracotta hover:bg-terracotta/90 text-white"
+                disabled={isPending}
+                onClick={handleStart}
+              >
+                {isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Running Live Audit...
+                  </>
+                ) : (
+                  <>
+                    <ShieldAlert className="mr-2 h-4 w-4" /> Launch Rejection Diagnosis Now →
+                  </>
+                )}
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 
-const gapStyles: Record<string, string> = {
-  matched: "bg-emerald-50 text-emerald-700",
-  partial: "bg-terracotta/12 text-terracotta",
-  missing: "bg-ink text-white",
-  missing_evidence: "bg-secondary text-foreground",
-};
+/* ------------------------------------------------------------------ */
+/* Comprehensive Diagnostic Results Dashboard                         */
+/* ------------------------------------------------------------------ */
 
-function TargetPicker() {
-  const [role, setRole] = useState("");
-  const [industry, setIndustry] = useState("");
-  const setTarget = useSetCareerTarget();
+function DiagnosticResultsView({
+  overview,
+  onRerun,
+  isRerunning,
+}: {
+  overview: CareerOverview;
+  onRerun: (company?: string, role?: string) => void;
+  isRerunning: boolean;
+}) {
+  const navigate = useNavigate();
+  const d = overview.diagnosis;
+  const generateRoadmap = useGenerateRoadmapV2();
+  const [activeTab, setActiveTab] = useState<"why-unemployed" | "lacking-matrix" | "company-truth" | "prescription">("why-unemployed");
+  const [generatedSuccess, setGeneratedSuccess] = useState(false);
+
+  if (!d || !d.companyDiagnosis) return null;
+  const companyDiag = d.companyDiagnosis;
+
+  const handleGenerateRoadmap = () => {
+    generateRoadmap.mutate(undefined, {
+      onSuccess: (res) => {
+        if (res.success) {
+          toast.success("Prescription successfully integrated into your Career Roadmap!");
+          setGeneratedSuccess(true);
+        } else {
+          toast.error(res.error || "Failed to generate roadmap.");
+        }
+      },
+      onError: (err) => {
+        toast.error(err instanceof Error ? err.message : "Failed to sync to roadmap.");
+      },
+    });
+  };
 
   return (
-    <Card className="max-w-xl">
-      <Label>Step 1</Label>
-      <h2 className="mt-2 text-[22px] font-bold tracking-[-0.02em]">
-        Choose your target career to start.
-      </h2>
-      <p className="mt-2 text-[13.5px] text-muted-foreground">
-        CareerPilot can only diagnose gaps once it knows where you're heading.
-      </p>
-      <form
-        className="mt-5 space-y-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setTarget.mutate(
-            { role: role.trim(), industry: industry.trim() || undefined },
-            {
-              onError: (err) => toast.error((err as Error).message),
-              onSuccess: () => toast.success("Target career saved"),
-            },
-          );
-        }}
-      >
-        <input
-          value={role}
-          onChange={(e) => setRole(e.target.value)}
-          placeholder="Target role (e.g. Data Analyst)"
-          className="w-full rounded-lg border border-border bg-card px-3 py-2.5 text-[13.5px] outline-none focus:border-terracotta"
-        />
-        <input
-          value={industry}
-          onChange={(e) => setIndustry(e.target.value)}
-          placeholder="Industry (optional)"
-          className="w-full rounded-lg border border-border bg-card px-3 py-2.5 text-[13.5px] outline-none focus:border-terracotta"
-        />
-        <button
-          type="submit"
-          disabled={setTarget.isPending || !role.trim()}
-          className="flex items-center gap-2 rounded-lg bg-terracotta px-4 py-2.5 text-[13px] font-semibold text-primary-foreground disabled:opacity-60"
+    <div className="space-y-6 pb-12">
+      {/* Top Banner: Rejection Verdict & High-Impact Metric Ring */}
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-ink via-neutral-900 to-neutral-800 p-8 text-white sm:p-10 shadow-2xl border border-terracotta/30">
+        <div className="pointer-events-none absolute -bottom-14 -right-14 h-72 w-72 rounded-full bg-terracotta/25 blur-3xl animate-pulse" />
+        <div className="pointer-events-none absolute -top-10 -left-10 h-48 w-48 rounded-full bg-clay/20 blur-3xl" />
+
+        <div className="relative z-10 flex flex-wrap items-center justify-between gap-6">
+          <div className="max-w-xl space-y-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-terracotta/20 px-3.5 py-1 text-xs font-bold text-terracotta border border-terracotta/30 shadow-xs">
+                <Building2 className="h-3.5 w-3.5" /> Technical Audit Verdict
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/20 px-3 py-1 text-xs font-bold text-rose-300 border border-rose-500/30">
+                <ShieldAlert className="h-3 w-3" /> Critical Screen-Out Risk
+              </span>
+            </div>
+
+            <h1 className="font-display text-2xl font-black sm:text-3xl lg:text-4xl leading-tight">
+              Rejection Diagnosis: <br />
+              <span className="text-terracotta underline decoration-terracotta/40 underline-offset-4">{companyDiag.riskTier}</span>
+            </h1>
+
+            <p className="text-xs leading-relaxed text-white/75 sm:text-sm">
+              Audited for <strong className="text-white">{d.targetRole}</strong> @ <strong className="text-terracotta">{companyDiag.companyName}</strong>.
+              Automated screening systems and engineering leads will flag your profile due to missing production proof artifacts and unverified technical depth.
+            </p>
+          </div>
+
+          {/* Metric Ring & Action Pill */}
+          <div className="flex flex-col sm:flex-row items-center gap-4 rounded-2xl border border-white/15 bg-white/10 p-5 backdrop-blur-md shadow-inner">
+            <div className="flex items-center gap-3">
+              <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-terracotta/20 border-2 border-terracotta/60 shadow-lg">
+                <span className="text-xl font-black text-terracotta">{companyDiag.rejectionRisk}%</span>
+              </div>
+              <div className="text-left">
+                <p className="text-xs font-black uppercase tracking-wider text-white">Rejection Risk</p>
+                <p className="text-[11px] text-white/60">Screening Failure Rate</p>
+              </div>
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10 rounded-xl border-white/20 bg-white/10 text-xs font-bold text-white hover:bg-white/20 shadow-xs"
+              disabled={isRerunning}
+              onClick={() => onRerun(companyDiag.companyName, d.targetRole || "Associate Software Engineer")}
+            >
+              {isRerunning ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <>
+                  <RefreshCw className="h-3.5 w-3.5 mr-1.5 text-terracotta" /> Re-audit Standard
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Modern 4-Tab Control Rail */}
+      <div className="card-surface p-2.5 sm:p-3 shadow-md border-terracotta/15">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { id: "why-unemployed", label: "1. Why You Are Screened Out", icon: ShieldAlert },
+            { id: "lacking-matrix", label: "2. What Is Lacking In Profile", icon: AlertCircle },
+            { id: "company-truth", label: "3. Company Hiring Standards", icon: Building2 },
+            { id: "prescription", label: "4. Recovery & Roadmap", icon: Flame },
+          ].map(({ id, label, icon: Icon }) => {
+            const isCurrent = activeTab === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setActiveTab(id as typeof activeTab)}
+                className={cn(
+                  "flex items-center gap-2.5 rounded-xl px-4 py-3 text-xs font-bold transition-all text-left border",
+                  isCurrent
+                    ? "border-terracotta/40 bg-ink text-white shadow-md scale-[1.01]"
+                    : "border-transparent bg-card text-muted-foreground hover:bg-secondary/80 hover:text-foreground",
+                )}
+              >
+                <Icon className={cn("h-4 w-4 shrink-0", isCurrent ? "text-terracotta" : "text-muted-foreground")} />
+                <span className="truncate">{label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Tab 1: Why You Are Screened Out */}
+      {activeTab === "why-unemployed" && (
+        <motion.div
+          key="tab-1"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+          className="card-surface p-6 sm:p-8 space-y-6 border-terracotta/15 shadow-sm"
         >
-          {setTarget.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Target className="h-4 w-4" />}
-          Set target career
-        </button>
-      </form>
-    </Card>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="font-display text-xl font-bold text-foreground sm:text-2xl">
+                Why {companyDiag.companyName} Screens Out Your Applications
+              </h2>
+              <p className="text-xs text-muted-foreground mt-1">
+                Specific structural barriers derived from live recruiting patterns and technical screening criteria.
+              </p>
+            </div>
+            <span className="rounded-full bg-rose-500/10 border border-rose-500/20 px-3.5 py-1 text-xs font-extrabold text-rose-600 dark:text-rose-400">
+              {companyDiag.whyUnemployedReasons.length} Critical Barriers Detected
+            </span>
+          </div>
+
+          <div className="grid gap-5 sm:grid-cols-2">
+            {companyDiag.whyUnemployedReasons.map((reason: { title: string; detail: string; recruiterPerspective: string }, index: number) => (
+              <div key={reason.title} className="group relative rounded-2xl border border-border bg-card p-6 space-y-4 hover:border-terracotta/40 hover:shadow-md transition-all">
+                <div className="flex items-center justify-between">
+                  <span className="rounded-lg bg-terracotta/10 border border-terracotta/20 px-3 py-0.5 text-xs font-black text-terracotta">
+                    Barrier 0{index + 1}
+                  </span>
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-500/10 text-rose-500">
+                    <ShieldAlert className="h-4 w-4" />
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-base font-bold text-foreground group-hover:text-terracotta transition-colors">
+                    {reason.title}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                    {reason.detail}
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-secondary/70 p-4 text-xs space-y-1 border border-border/60">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-terracotta">Verified Recruiter Feedback:</p>
+                  <p className="italic font-medium text-foreground leading-relaxed">
+                    "{reason.recruiterPerspective}"
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex justify-end pt-4 border-t border-border">
+            <Button className="rounded-xl font-bold text-xs shadow-md bg-ink hover:bg-ink/90 text-white" onClick={() => setActiveTab("lacking-matrix")}>
+              Next: Inspect Profile Deficiencies <ArrowRight className="ml-1.5 h-4 w-4 text-terracotta" />
+            </Button>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Tab 2: What Is Lacking */}
+      {activeTab === "lacking-matrix" && (
+        <motion.div
+          key="tab-2"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+          className="card-surface p-6 sm:p-8 space-y-6 border-terracotta/15 shadow-sm"
+        >
+          <div>
+            <h2 className="font-display text-xl font-bold text-foreground sm:text-2xl">Capability & Evidence Gap Breakdown</h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              Pinpoint deficiencies in required tech stacks, project proof artifacts, and ATS keyword optimization.
+            </p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-3">
+            {/* Missing Non-Negotiables */}
+            <div className="rounded-2xl border border-rose-500/30 bg-gradient-to-b from-rose-500/5 to-card p-5 space-y-3.5 shadow-xs">
+              <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400">
+                <X className="h-4 w-4 shrink-0 font-bold" />
+                <h3 className="text-xs font-black uppercase tracking-wider">Missing Non-Negotiables</h3>
+              </div>
+              <ul className="space-y-2.5 text-xs text-foreground">
+                {companyDiag.whatIsLacking.missingNonNegotiables.map((item: string) => (
+                  <li key={item} className="flex items-start gap-2.5 rounded-xl bg-card p-3 border border-rose-500/15 shadow-2xs">
+                    <span className="mt-1 h-2 w-2 rounded-full bg-rose-500 shrink-0" />
+                    <span className="font-medium">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Project Deficiencies */}
+            <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-b from-amber-500/5 to-card p-5 space-y-3.5 shadow-xs">
+              <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <h3 className="text-xs font-black uppercase tracking-wider">Project Deficiencies</h3>
+              </div>
+              <ul className="space-y-2.5 text-xs text-foreground">
+                {companyDiag.whatIsLacking.projectDeficiencies.map((item: string) => (
+                  <li key={item} className="flex items-start gap-2.5 rounded-xl bg-card p-3 border border-amber-500/15 shadow-2xs">
+                    <span className="mt-1 h-2 w-2 rounded-full bg-amber-500 shrink-0" />
+                    <span className="font-medium">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* ATS & Formatting Flaws */}
+            <div className="rounded-2xl border border-blue-500/30 bg-gradient-to-b from-blue-500/5 to-card p-5 space-y-3.5 shadow-xs">
+              <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                <FileCheck className="h-4 w-4 shrink-0" />
+                <h3 className="text-xs font-black uppercase tracking-wider">Profile & Evidence Flaws</h3>
+              </div>
+              <ul className="space-y-2.5 text-xs text-foreground">
+                {companyDiag.whatIsLacking.cvAndAtsFlaws.map((item: string) => (
+                  <li key={item} className="flex items-start gap-2.5 rounded-xl bg-card p-3 border border-blue-500/15 shadow-2xs">
+                    <span className="mt-1 h-2 w-2 rounded-full bg-blue-500 shrink-0" />
+                    <span className="font-medium">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-4 border-t border-border">
+            <Button variant="ghost" className="rounded-xl text-xs font-bold" onClick={() => setActiveTab("why-unemployed")}>
+              <ArrowLeft className="mr-1.5 h-4 w-4" /> Back to Rejection Reasons
+            </Button>
+            <Button className="rounded-xl font-bold text-xs shadow-md bg-ink hover:bg-ink/90 text-white" onClick={() => setActiveTab("company-truth")}>
+              Next: View Company Standards <ArrowRight className="ml-1.5 h-4 w-4 text-terracotta" />
+            </Button>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Tab 3: Company Hiring Bar */}
+      {activeTab === "company-truth" && (
+        <motion.div
+          key="tab-3"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+          className="card-surface p-6 sm:p-8 space-y-6 border-terracotta/15 shadow-sm"
+        >
+          <div>
+            <h2 className="font-display text-xl font-bold text-foreground sm:text-2xl">
+              {companyDiag.companyName} Hiring Standard vs Candidate Proof
+            </h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              How engineering leaders evaluate technical candidates in screening rounds.
+            </p>
+          </div>
+
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div className="rounded-2xl border border-border bg-card p-6 space-y-3.5 hover:border-terracotta/40 transition-colors shadow-xs">
+              <div className="flex items-center gap-2.5 text-terracotta">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-terracotta/10 text-terracotta">
+                  <Code2 className="h-5 w-5" />
+                </div>
+                <h3 className="text-base font-bold text-foreground">Technical Screening Test Expectation</h3>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed sm:text-sm">
+                Candidates are expected to solve live algorithmic problems, write indexed SQL queries under time pressure, and present modular OOP / System Architecture cleanly without tutorial code copy-pasting.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-card p-6 space-y-3.5 hover:border-terracotta/40 transition-colors shadow-xs">
+              <div className="flex items-center gap-2.5 text-terracotta">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-terracotta/10 text-terracotta">
+                  <Terminal className="h-5 w-5" />
+                </div>
+                <h3 className="text-base font-bold text-foreground">Verified Proof Artifact Requirements</h3>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed sm:text-sm">
+                Instead of basic UI clones, top tier hires present production applications featuring Docker containerization, REST API documentation (Swagger), production database schemas, and live test suites.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-4 border-t border-border">
+            <Button variant="ghost" className="rounded-xl text-xs font-bold" onClick={() => setActiveTab("lacking-matrix")}>
+              <ArrowLeft className="mr-1.5 h-4 w-4" /> Back to Profile Deficiencies
+            </Button>
+            <Button className="rounded-xl font-bold text-xs shadow-md bg-ink hover:bg-ink/90 text-white" onClick={() => setActiveTab("prescription")}>
+              Next: View Action Blueprint & Roadmap <ArrowRight className="ml-1.5 h-4 w-4 text-terracotta" />
+            </Button>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Tab 4: Prescription & Roadmap Sync */}
+      {activeTab === "prescription" && (
+        <motion.div
+          key="tab-4"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+          className="space-y-6"
+        >
+          <div className="card-surface p-6 sm:p-8 space-y-6 border-terracotta/30 shadow-md">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-terracotta/15 text-terracotta border border-terracotta/30">
+                <Flame className="h-6 w-6" />
+              </div>
+              <div>
+                <span className="text-xs font-extrabold uppercase tracking-wider text-terracotta">
+                  Prescribed Proof Project for {companyDiag.companyName}
+                </span>
+                <h2 className="font-display text-2xl font-black text-foreground sm:text-3xl">
+                  {companyDiag.prescription.recommendedProofProject.title}
+                </h2>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground leading-relaxed sm:text-sm">
+              {companyDiag.prescription.recommendedProofProject.description}
+            </p>
+
+            {/* Prescribed Deliverables */}
+            <div className="rounded-2xl bg-secondary/60 p-6 space-y-4 border border-border">
+              <p className="text-xs font-extrabold uppercase tracking-wider text-foreground">
+                Key Deliverables Required to Pass {companyDiag.companyName}'s Bar:
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2 text-xs">
+                {[
+                  "Production REST / GraphQL API with automated database migrations",
+                  "Comprehensive integration & unit test suite (Jest / Vitest)",
+                  "Dockerized environment configuration with PostgreSQL / Redis",
+                  "Live deployed production URL with clean public GitHub repository & documentation",
+                ].map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-3 rounded-xl bg-card p-3.5 border border-border shadow-2xs">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                    <span className="font-medium text-foreground">{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 1-Click Sync to Career Roadmap */}
+            <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-border">
+              <Button
+                className="h-12 rounded-xl px-7 text-xs font-bold shadow-lg bg-terracotta hover:bg-terracotta/90 text-white"
+                disabled={generateRoadmap.isPending}
+                onClick={handleGenerateRoadmap}
+              >
+                {generateRoadmap.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Building Career Roadmap...
+                  </>
+                ) : (
+                  <>
+                    <Map className="mr-2 h-4 w-4" /> Build This in My Career Roadmap →
+                  </>
+                )}
+              </Button>
+
+              {generatedSuccess ? (
+                <Button
+                  variant="outline"
+                  className="h-12 rounded-xl px-6 text-xs font-bold border-terracotta text-terracotta hover:bg-terracotta/10"
+                  onClick={() => navigate({ to: "/roadmap" })}
+                >
+                  <Sparkles className="mr-1.5 h-4 w-4" /> View Your Generated Roadmap →
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  className="h-12 rounded-xl px-6 text-xs font-bold border-border"
+                  onClick={() => navigate({ to: "/roadmap" })}
+                >
+                  Go to Career Roadmap
+                </Button>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      )}
+    </div>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/* Main Diagnosis Route Component                                     */
+/* ------------------------------------------------------------------ */
 
 function DiagnosisPage() {
   const navigate = useNavigate();
-  const { data, isLoading } = useCareerOverview();
-  const run = useRunDiagnosis();
-  const generateRoadmap = useGenerateRoadmap();
+  const overview = useCareerOverview();
+  const runDiagnosis = useRunDiagnosis();
 
-  if (isLoading || !data) {
+  const handleRunDiagnosis = (company: string, role: string) => {
+    runDiagnosis.mutate(
+      { company, role },
+      {
+        onSuccess: () => {
+          toast.success(`Diagnostic audit complete for ${role} @ ${company}!`);
+          void overview.refetch();
+        },
+        onError: (err) => toast.error(err instanceof Error ? err.message : "Diagnosis failed"),
+      },
+    );
+  };
+
+  if (overview.isLoading) {
     return (
-      <AppLayout title="Career Diagnosis" subtitle="Loading your career state">
-        <div className="grid gap-4 md:grid-cols-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-40 animate-pulse rounded-2xl bg-card" />
-          ))}
+      <AppLayout title="Career Diagnosis" subtitle="Auditing your employability...">
+        <div className="space-y-6">
+          <div className="h-44 animate-pulse rounded-3xl bg-secondary/80" />
+          <div className="h-80 animate-pulse rounded-3xl bg-secondary/80" />
         </div>
       </AppLayout>
     );
   }
 
-  if (!data.targetRole) {
-    return (
-      <AppLayout title="My Career Diagnosis" subtitle="Start with a destination">
-        <TargetPicker />
-      </AppLayout>
-    );
-  }
-
-  const d = data.diagnosis;
-  const readiness = d?.readiness.overall ?? data.readiness?.overall ?? null;
-  const stage = d?.stage ?? data.readiness?.stage ?? "Not assessed yet";
-  const analyzing = run.isPending;
-
-  const analyze = () =>
-    run.mutate(undefined, {
-      onError: (err) => toast.error((err as Error).message),
-      onSuccess: () => toast.success("Career diagnosis updated"),
-    });
+  const data = overview.data;
+  const hasDiagnosis = Boolean(data?.diagnosis?.companyDiagnosis);
 
   return (
-    <AppLayout title="My Career Diagnosis" subtitle="Honest gaps, one next action">
-      <div className="space-y-4">
-        <Card>
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div>
-                <Label>Current stage</Label>
-                <p className="mt-1.5 text-[16px] font-bold">{stage}</p>
-              </div>
-              <div>
-                <Label>Target career</Label>
-                <p className="mt-1.5 text-[16px] font-bold">{data.targetRole}</p>
-              </div>
-              <div>
-                <Label>Target job</Label>
-                <p className="mt-1.5 text-[16px] font-bold">
-                  {data.targetJob
-                    ? `${data.targetJob.title}${data.targetJob.company ? ` @ ${data.targetJob.company}` : ""}`
-                    : "—"}
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={analyze}
-              disabled={analyzing}
-              className="flex items-center gap-2 rounded-lg bg-terracotta px-4 py-2.5 text-[13px] font-semibold text-primary-foreground disabled:opacity-60"
-            >
-              {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Target className="h-4 w-4" />}
-              {d ? "Reassess my career" : "Analyze my career"}
-            </button>
+    <AppLayout
+      title={
+        <span>
+          Career Rejection Diagnosis <Sparkles className="inline h-5 w-5 text-terracotta" />
+        </span>
+      }
+      subtitle="Discover why you are unemployed, what is lacking in your profile, and why specific companies reject you."
+    >
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" size="sm" className="rounded-xl text-xs font-bold" onClick={() => navigate({ to: "/dashboard" })}>
+            <ArrowLeft className="mr-1.5 h-3.5 w-3.5" /> Back to Dashboard
+          </Button>
+          <div className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1 text-xs text-muted-foreground">
+            <LockKeyhole className="h-3.5 w-3.5 text-terracotta" /> Private & Confidential
           </div>
-          {!data.hasResume ? (
-            <p className="mt-4 text-[12.5px] text-muted-foreground">
-              Add your resume to improve evidence quality.
-            </p>
-          ) : null}
-        </Card>
+        </div>
 
-        {!d ? (
-          <Card>
-            <p className="text-[14px] font-semibold">
-              Run your Career Diagnosis to see what you should improve.
-            </p>
-            <p className="mt-2 text-[13px] text-muted-foreground">
-              CareerPilot uses only your real recorded profile, skills, evidence and target job.
-            </p>
-          </Card>
+        {runDiagnosis.isPending ? (
+          <ScanningOverlay
+            companyName={data?.diagnosis?.targetCompany || data?.targetJob?.company || "Systems Limited"}
+            roleName={data?.diagnosis?.targetRole || data?.targetRole || "Associate Software Engineer"}
+          />
+        ) : hasDiagnosis ? (
+          <div className="space-y-8">
+            <DiagnosticResultsView
+              overview={data!}
+              onRerun={(comp, r) => handleRunDiagnosis(comp || "Systems Limited", r || "Associate Software Engineer")}
+              isRerunning={runDiagnosis.isPending}
+            />
+            <div className="border-t border-border pt-8">
+              <div className="mb-4">
+                <h3 className="font-display text-lg font-bold text-foreground">Audit Another Company or Role</h3>
+                <p className="text-xs text-muted-foreground">
+                  Run a fresh technical diagnostic audit against another employer.
+                </p>
+              </div>
+              <WizardSetup
+                targetCompany={data?.diagnosis?.targetCompany || "Systems Limited"}
+                targetRole={data?.diagnosis?.targetRole || "Associate Software Engineer"}
+                onRunDiagnosis={handleRunDiagnosis}
+                isPending={runDiagnosis.isPending}
+              />
+            </div>
+          </div>
         ) : (
-          <>
-            {/* NEXT BEST ACTION */}
-            {d.nextBestAction?.action ? (
-              <Card className="border-terracotta/40 bg-terracotta/[0.06]">
-                <Label>Next best action</Label>
-                <h2 className="mt-2 text-[24px] font-bold leading-tight tracking-[-0.02em]">
-                  {d.nextBestAction.action}
-                </h2>
-                {d.nextBestAction.why ? (
-                  <p className="mt-3 text-[13.5px] text-muted-foreground">
-                    <span className="font-semibold text-foreground">Why: </span>
-                    {d.nextBestAction.why}
-                  </p>
-                ) : null}
-                {d.nextBestAction.evidence_to_produce ? (
-                  <p className="mt-1.5 text-[13.5px] text-muted-foreground">
-                    <span className="font-semibold text-foreground">Evidence to produce: </span>
-                    {d.nextBestAction.evidence_to_produce}
-                  </p>
-                ) : null}
-                {d.nextBestAction.estimated_effort ? (
-                  <p className="mt-1.5 text-[12.5px] text-muted-foreground">
-                    Estimated effort: {d.nextBestAction.estimated_effort}
-                  </p>
-                ) : null}
-                <button
-                  type="button"
-                  disabled={generateRoadmap.isPending}
-                  onClick={() =>
-                    generateRoadmap.mutate(undefined, {
-                      onError: (err) => toast.error((err as Error).message),
-                      onSuccess: () => {
-                        toast.success("Added to your roadmap");
-                        void navigate({ to: "/roadmap" });
-                      },
-                    })
-                  }
-                  className="mt-5 flex items-center gap-2 rounded-lg bg-ink px-4 py-2.5 text-[13px] font-semibold text-white disabled:opacity-60"
-                >
-                  {generateRoadmap.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <ArrowRight className="h-4 w-4" />
-                  )}
-                  Start this action
-                </button>
-              </Card>
-            ) : null}
-
-            {/* READINESS */}
-            <Card>
-              <div className="flex items-baseline justify-between">
-                <Label>Readiness</Label>
-                <p className="text-[28px] font-bold tracking-[-0.03em]">
-                  {readiness ?? "—"}
-                  <span className="text-[13px] font-medium text-muted-foreground">/100</span>
-                </p>
-              </div>
-              <div className="mt-4 space-y-3">
-                {d.readiness.breakdown.length ? (
-                  d.readiness.breakdown.map((b) => (
-                    <div key={b.label}>
-                      <div className="flex items-center justify-between text-[13px] font-semibold">
-                        <span>{b.label}</span>
-                        <span>{b.score}</span>
-                      </div>
-                      <div className="mt-1 h-1.5 rounded-full bg-secondary">
-                        <div
-                          className="h-1.5 rounded-full bg-terracotta"
-                          style={{ width: `${Math.max(0, Math.min(100, b.score))}%` }}
-                        />
-                      </div>
-                      {b.explanation ? (
-                        <p className="mt-1 text-[12px] text-muted-foreground">{b.explanation}</p>
-                      ) : null}
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-[13px] text-muted-foreground">Not enough evidence yet.</p>
-                )}
-              </div>
-              {d.blockers[0] ? (
-                <p className="mt-4 text-[13px]">
-                  <span className="font-semibold">Main blocker: </span>
-                  {d.blockers[0].problem}
-                </p>
-              ) : null}
-            </Card>
-
-            <div className="grid gap-4 lg:grid-cols-2">
-              {/* STRENGTHS */}
-              <Card>
-                <Label>What I'm doing well</Label>
-                <ul className="mt-3 space-y-2">
-                  {d.strengths.length ? (
-                    d.strengths.map((s) => (
-                      <li key={s} className="flex gap-2 text-[13.5px]">
-                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                        <span>{s}</span>
-                      </li>
-                    ))
-                  ) : (
-                    <li className="text-[13px] text-muted-foreground">
-                      Nothing recorded yet — add a project so CareerPilot can evaluate practical
-                      evidence.
-                    </li>
-                  )}
-                </ul>
-              </Card>
-
-              {/* EVIDENCE SUMMARY */}
-              <Card>
-                <Label>Skill / evidence status</Label>
-                <div className="mt-3 space-y-3 text-[13px]">
-                  <div>
-                    <p className="font-semibold">Demonstrated</p>
-                    <p className="text-muted-foreground">
-                      {d.evidenceSummary.demonstrated.join(", ") || "None yet"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="font-semibold">Claimed only (no proof)</p>
-                    <p className="text-muted-foreground">
-                      {d.evidenceSummary.claimed_only.join(", ") || "None"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="font-semibold">Unknown</p>
-                    <p className="text-muted-foreground">
-                      {d.evidenceSummary.unknown.join(", ") || "None"}
-                    </p>
-                  </div>
-                </div>
-                {data.gaps.length ? (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {data.gaps.map((g) => (
-                      <span
-                        key={g.skill}
-                        className={cn(
-                          "rounded-full px-2.5 py-1 text-[11.5px] font-semibold",
-                          gapStyles[g.status] ?? "bg-secondary text-foreground",
-                        )}
-                      >
-                        {g.skill} · {g.status.replace("_", " ")}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
-              </Card>
-            </div>
-
-            {/* BLOCKERS */}
-            <Card>
-              <Label>Top career blockers</Label>
-              <div className="mt-4 space-y-4">
-                {d.blockers.length ? (
-                  d.blockers.map((b, i) => (
-                    <div key={b.problem} className="rounded-xl border border-border p-4">
-                      <div className="flex items-start gap-2">
-                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-terracotta" />
-                        <p className="text-[14px] font-bold">
-                          {i + 1}. {b.problem}
-                        </p>
-                      </div>
-                      <dl className="mt-3 space-y-1.5 text-[13px] text-muted-foreground">
-                        {b.why_it_matters ? (
-                          <p>
-                            <span className="font-semibold text-foreground">Why it matters: </span>
-                            {b.why_it_matters}
-                          </p>
-                        ) : null}
-                        {b.evidence ? (
-                          <p>
-                            <span className="font-semibold text-foreground">Evidence: </span>
-                            {b.evidence}
-                          </p>
-                        ) : null}
-                        {b.impact ? (
-                          <p>
-                            <span className="font-semibold text-foreground">Impact: </span>
-                            {b.impact}
-                          </p>
-                        ) : null}
-                        {b.fix ? (
-                          <p>
-                            <span className="font-semibold text-foreground">Fix: </span>
-                            {b.fix}
-                          </p>
-                        ) : null}
-                      </dl>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-[13px] text-muted-foreground">No blockers detected.</p>
-                )}
-              </div>
-            </Card>
-
-            {/* PRIORITIES */}
-            <Card>
-              <Label>Priorities</Label>
-              <div className="mt-4 space-y-3">
-                {d.priorities.length ? (
-                  d.priorities.map((p) => (
-                    <div key={p.title} className="rounded-xl border border-border p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-[13.5px] font-bold">{p.title}</p>
-                        <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide">
-                          {p.impact}
-                        </span>
-                      </div>
-                      {p.reason ? (
-                        <p className="mt-2 text-[13px] text-muted-foreground">{p.reason}</p>
-                      ) : null}
-                      {p.action ? (
-                        <p className="mt-1 text-[13px] text-muted-foreground">
-                          <span className="font-semibold text-foreground">Action: </span>
-                          {p.action}
-                        </p>
-                      ) : null}
-                      {p.evidence_to_produce ? (
-                        <p className="mt-1 text-[13px] text-muted-foreground">
-                          <span className="font-semibold text-foreground">Evidence: </span>
-                          {p.evidence_to_produce}
-                        </p>
-                      ) : null}
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-[13px] text-muted-foreground">No priorities yet.</p>
-                )}
-              </div>
-            </Card>
-
-            {/* SEQUENCE */}
-            <div className="grid gap-4 sm:grid-cols-3">
-              {(["now", "next", "after"] as const).map((when) => {
-                const item = d.sequence.find((s) => s.when === when);
-                return (
-                  <Card key={when}>
-                    <Label>{when === "after" ? "After that" : when}</Label>
-                    <p className="mt-2 text-[13.5px]">
-                      {item?.action ?? <span className="text-muted-foreground">—</span>}
-                    </p>
-                  </Card>
-                );
-              })}
-            </div>
-
-            {d.progressNote ? (
-              <Card>
-                <Label>Since last diagnosis</Label>
-                <p className="mt-2 text-[13.5px]">{d.progressNote}</p>
-              </Card>
-            ) : null}
-          </>
+          <WizardSetup
+            targetCompany={data?.targetJob?.company || "Systems Limited"}
+            targetRole={data?.targetRole || "Associate Software Engineer"}
+            onRunDiagnosis={handleRunDiagnosis}
+            isPending={runDiagnosis.isPending}
+          />
         )}
       </div>
     </AppLayout>

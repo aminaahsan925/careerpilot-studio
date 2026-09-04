@@ -97,9 +97,10 @@ export function useUploadAndAnalyze() {
       if (file.size > MAX_BYTES) throw new Error("That file is larger than 5MB.");
 
       const { data: auth, error: authError } = await supabase.auth.getUser();
-      if (authError || !auth.user) throw new Error("Your session has expired. Please sign in again.");
+      if (authError || !auth.user)
+        throw new Error("Your session has expired. Please sign in again.");
 
-      const path = `${auth.user.id}/${Date.now()}-${file.name.replace(/[^\w.\-]+/g, "_")}`;
+      const path = `${auth.user.id}/${Date.now()}-${file.name.replace(/[^\w.-]+/g, "_")}`;
       const upload = await supabase.storage.from("resumes").upload(path, file, { upsert: false });
       if (upload.error) throw upload.error;
 

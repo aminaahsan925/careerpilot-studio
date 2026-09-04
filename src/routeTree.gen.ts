@@ -14,8 +14,14 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDiagnosisRouteImport } from './routes/_authenticated/diagnosis'
+import { Route as AuthenticatedFlightplanRouteImport } from './routes/_authenticated/flightplan'
+import { Route as AuthenticatedFutureTechRouteImport } from './routes/_authenticated/future-tech'
+import { Route as AuthenticatedJobmirrorRouteImport } from './routes/_authenticated/jobmirror'
+import { Route as AuthenticatedMarketRouteImport } from './routes/_authenticated/market'
 import { Route as AuthenticatedMentorRouteImport } from './routes/_authenticated/mentor'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
+import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
+import { Route as AuthenticatedRecruiterRouteImport } from './routes/_authenticated/recruiter'
 import { Route as AuthenticatedResumeRouteImport } from './routes/_authenticated/resume'
 import { Route as AuthenticatedRoadmapRouteImport } from './routes/_authenticated/roadmap'
 
@@ -43,6 +49,26 @@ const AuthenticatedDiagnosisRoute = AuthenticatedDiagnosisRouteImport.update({
   path: '/diagnosis',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedFlightplanRoute = AuthenticatedFlightplanRouteImport.update({
+  id: '/flightplan',
+  path: '/flightplan',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedFutureTechRoute = AuthenticatedFutureTechRouteImport.update({
+  id: '/future-tech',
+  path: '/future-tech',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedJobmirrorRoute = AuthenticatedJobmirrorRouteImport.update({
+  id: '/jobmirror',
+  path: '/jobmirror',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMarketRoute = AuthenticatedMarketRouteImport.update({
+  id: '/market',
+  path: '/market',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedMentorRoute = AuthenticatedMentorRouteImport.update({
   id: '/mentor',
   path: '/mentor',
@@ -51,6 +77,16 @@ const AuthenticatedMentorRoute = AuthenticatedMentorRouteImport.update({
 const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedRecruiterRoute = AuthenticatedRecruiterRouteImport.update({
+  id: '/recruiter',
+  path: '/recruiter',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedResumeRoute = AuthenticatedResumeRouteImport.update({
@@ -69,8 +105,14 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/diagnosis': typeof AuthenticatedDiagnosisRoute
+  '/flightplan': typeof AuthenticatedFlightplanRoute
+  '/future-tech': typeof AuthenticatedFutureTechRoute
+  '/jobmirror': typeof AuthenticatedJobmirrorRoute
+  '/market': typeof AuthenticatedMarketRoute
   '/mentor': typeof AuthenticatedMentorRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/profile': typeof AuthenticatedProfileRoute
+  '/recruiter': typeof AuthenticatedRecruiterRoute
   '/resume': typeof AuthenticatedResumeRoute
   '/roadmap': typeof AuthenticatedRoadmapRoute
 }
@@ -79,8 +121,14 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/diagnosis': typeof AuthenticatedDiagnosisRoute
+  '/flightplan': typeof AuthenticatedFlightplanRoute
+  '/future-tech': typeof AuthenticatedFutureTechRoute
+  '/jobmirror': typeof AuthenticatedJobmirrorRoute
+  '/market': typeof AuthenticatedMarketRoute
   '/mentor': typeof AuthenticatedMentorRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/profile': typeof AuthenticatedProfileRoute
+  '/recruiter': typeof AuthenticatedRecruiterRoute
   '/resume': typeof AuthenticatedResumeRoute
   '/roadmap': typeof AuthenticatedRoadmapRoute
 }
@@ -91,8 +139,14 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/diagnosis': typeof AuthenticatedDiagnosisRoute
+  '/_authenticated/flightplan': typeof AuthenticatedFlightplanRoute
+  '/_authenticated/future-tech': typeof AuthenticatedFutureTechRoute
+  '/_authenticated/jobmirror': typeof AuthenticatedJobmirrorRoute
+  '/_authenticated/market': typeof AuthenticatedMarketRoute
   '/_authenticated/mentor': typeof AuthenticatedMentorRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
+  '/_authenticated/profile': typeof AuthenticatedProfileRoute
+  '/_authenticated/recruiter': typeof AuthenticatedRecruiterRoute
   '/_authenticated/resume': typeof AuthenticatedResumeRoute
   '/_authenticated/roadmap': typeof AuthenticatedRoadmapRoute
 }
@@ -103,8 +157,14 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dashboard'
     | '/diagnosis'
+    | '/flightplan'
+    | '/future-tech'
+    | '/jobmirror'
+    | '/market'
     | '/mentor'
     | '/onboarding'
+    | '/profile'
+    | '/recruiter'
     | '/resume'
     | '/roadmap'
   fileRoutesByTo: FileRoutesByTo
@@ -113,8 +173,14 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dashboard'
     | '/diagnosis'
+    | '/flightplan'
+    | '/future-tech'
+    | '/jobmirror'
+    | '/market'
     | '/mentor'
     | '/onboarding'
+    | '/profile'
+    | '/recruiter'
     | '/resume'
     | '/roadmap'
   id:
@@ -124,8 +190,14 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/dashboard'
     | '/_authenticated/diagnosis'
+    | '/_authenticated/flightplan'
+    | '/_authenticated/future-tech'
+    | '/_authenticated/jobmirror'
+    | '/_authenticated/market'
     | '/_authenticated/mentor'
     | '/_authenticated/onboarding'
+    | '/_authenticated/profile'
+    | '/_authenticated/recruiter'
     | '/_authenticated/resume'
     | '/_authenticated/roadmap'
   fileRoutesById: FileRoutesById
@@ -173,6 +245,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDiagnosisRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/flightplan': {
+      id: '/_authenticated/flightplan'
+      path: '/flightplan'
+      fullPath: '/flightplan'
+      preLoaderRoute: typeof AuthenticatedFlightplanRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/future-tech': {
+      id: '/_authenticated/future-tech'
+      path: '/future-tech'
+      fullPath: '/future-tech'
+      preLoaderRoute: typeof AuthenticatedFutureTechRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/jobmirror': {
+      id: '/_authenticated/jobmirror'
+      path: '/jobmirror'
+      fullPath: '/jobmirror'
+      preLoaderRoute: typeof AuthenticatedJobmirrorRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/market': {
+      id: '/_authenticated/market'
+      path: '/market'
+      fullPath: '/market'
+      preLoaderRoute: typeof AuthenticatedMarketRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/mentor': {
       id: '/_authenticated/mentor'
       path: '/mentor'
@@ -185,6 +285,20 @@ declare module '@tanstack/react-router' {
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof AuthenticatedOnboardingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/profile': {
+      id: '/_authenticated/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AuthenticatedProfileRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/recruiter': {
+      id: '/_authenticated/recruiter'
+      path: '/recruiter'
+      fullPath: '/recruiter'
+      preLoaderRoute: typeof AuthenticatedRecruiterRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/resume': {
@@ -207,8 +321,14 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDiagnosisRoute: typeof AuthenticatedDiagnosisRoute
+  AuthenticatedFlightplanRoute: typeof AuthenticatedFlightplanRoute
+  AuthenticatedFutureTechRoute: typeof AuthenticatedFutureTechRoute
+  AuthenticatedJobmirrorRoute: typeof AuthenticatedJobmirrorRoute
+  AuthenticatedMarketRoute: typeof AuthenticatedMarketRoute
   AuthenticatedMentorRoute: typeof AuthenticatedMentorRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
+  AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
+  AuthenticatedRecruiterRoute: typeof AuthenticatedRecruiterRoute
   AuthenticatedResumeRoute: typeof AuthenticatedResumeRoute
   AuthenticatedRoadmapRoute: typeof AuthenticatedRoadmapRoute
 }
@@ -216,8 +336,14 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDiagnosisRoute: AuthenticatedDiagnosisRoute,
+  AuthenticatedFlightplanRoute: AuthenticatedFlightplanRoute,
+  AuthenticatedFutureTechRoute: AuthenticatedFutureTechRoute,
+  AuthenticatedJobmirrorRoute: AuthenticatedJobmirrorRoute,
+  AuthenticatedMarketRoute: AuthenticatedMarketRoute,
   AuthenticatedMentorRoute: AuthenticatedMentorRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
+  AuthenticatedProfileRoute: AuthenticatedProfileRoute,
+  AuthenticatedRecruiterRoute: AuthenticatedRecruiterRoute,
   AuthenticatedResumeRoute: AuthenticatedResumeRoute,
   AuthenticatedRoadmapRoute: AuthenticatedRoadmapRoute,
 }

@@ -1,22 +1,17 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  Award,
-  Briefcase,
-  Crown,
+  BarChart3,
+  ChevronDown,
   FileText,
-  FolderClosed,
   LayoutGrid,
   Map,
   MessageCircle,
-  Mic,
-  Send,
-  Settings,
+  Plane,
   Sparkles,
-  Target,
+  Stethoscope,
   User,
-  ChevronDown,
+  UserCheck,
 } from "lucide-react";
-import { toast } from "sonner";
 
 import { useCurrentUser } from "@/data/user";
 import { cn } from "@/lib/utils";
@@ -24,22 +19,20 @@ import { cn } from "@/lib/utils";
 type NavItem = {
   label: string;
   icon: typeof LayoutGrid;
-  to?: string;
+  to: string;
 };
 
 const NAV: NavItem[] = [
   { label: "Dashboard", icon: LayoutGrid, to: "/dashboard" },
-  { label: "AI Mentor", icon: MessageCircle, to: "/mentor" },
+  { label: "Diagnosis", icon: Stethoscope, to: "/diagnosis" },
+  { label: "Recruiter Audit", icon: UserCheck, to: "/recruiter" },
+  { label: "Flight Plan", icon: Plane, to: "/flightplan" },
+  { label: "Future Tech Trends", icon: Sparkles, to: "/future-tech" },
   { label: "Roadmap", icon: Map, to: "/roadmap" },
-  { label: "Skills", icon: Target },
-  { label: "Projects", icon: FolderClosed },
   { label: "Resumes", icon: FileText, to: "/resume" },
-  { label: "Jobs", icon: Briefcase },
-  { label: "Applications", icon: Send },
-  { label: "Mock Interview", icon: Mic },
-  { label: "Certificates", icon: Award },
-  { label: "Profile", icon: User },
-  { label: "Settings", icon: Settings },
+  { label: "Market Reality", icon: BarChart3, to: "/market" },
+  { label: "AI Mentor", icon: MessageCircle, to: "/mentor" },
+  { label: "Profile", icon: User, to: "/profile" },
 ];
 
 export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
@@ -58,60 +51,42 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       <nav className="mt-8 flex-1 space-y-0.5 overflow-y-auto pr-1">
         {NAV.map(({ label, icon: Icon, to }) => {
-          const active = to ? pathname === to : false;
+          const active = pathname === to;
           const className = cn(
             "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[13.5px] font-medium transition-colors",
             active
               ? "bg-sidebar-primary text-sidebar-primary-foreground"
               : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
           );
-          const inner = (
-            <>
+          return (
+            <Link key={label} to={to} onClick={onNavigate} className={className}>
               <Icon className="h-[17px] w-[17px]" strokeWidth={1.7} />
               <span>{label}</span>
-            </>
-          );
-          return to ? (
-            <Link key={label} to={to} onClick={onNavigate} className={className}>
-              {inner}
             </Link>
-          ) : (
-            <button
-              key={label}
-              type="button"
-              onClick={() => toast(`${label} is coming soon`)}
-              className={className}
-            >
-              {inner}
-            </button>
           );
         })}
       </nav>
 
-      <div className="mt-6 rounded-xl border border-sidebar-border bg-sidebar-accent/60 p-4">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-sidebar-primary-foreground">Unlock Premium</p>
-          <Crown className="h-4 w-4 text-terracotta" />
-        </div>
-        <p className="mt-2 text-[12px] leading-relaxed text-sidebar-foreground/60">
-          Get full access to AI features and advanced analytics
-        </p>
-        <button
-          type="button"
-          onClick={() => toast("Premium plans are coming soon")}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-terracotta px-3 py-2.5 text-[13px] font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
-        >
-          Upgrade Now <span aria-hidden>→</span>
-        </button>
-      </div>
-
       <div className="mt-4 flex items-center gap-3 rounded-xl border border-sidebar-border bg-card px-3 py-3">
-        <img
-          src={user?.avatar ?? undefined}
-          alt=""
-          loading="lazy"
-          className="h-9 w-9 shrink-0 rounded-full bg-muted object-cover"
-        />
+        {user?.avatar ? (
+          <img
+            src={user.avatar}
+            alt={user.fullName || "User avatar"}
+            loading="lazy"
+            className="h-9 w-9 shrink-0 rounded-full bg-muted object-cover"
+          />
+        ) : (
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-terracotta text-[12px] font-bold text-primary-foreground">
+            {user?.fullName
+              ? user.fullName
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .slice(0, 2)
+                  .toUpperCase()
+              : "CP"}
+          </div>
+        )}
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] font-semibold text-foreground">{user?.fullName}</p>
           <p className="truncate text-[11.5px] text-muted-foreground">{user?.role}</p>

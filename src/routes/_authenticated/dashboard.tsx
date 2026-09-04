@@ -2,10 +2,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Link } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import {
+  BarChart3,
+  Briefcase,
   Calendar,
   CheckCircle2,
   Circle,
   FileText,
+  FolderOpen,
   MapIcon,
   MessageCircle,
   Mic,
@@ -15,6 +18,7 @@ import {
   Sparkles,
   Target,
   TrendingUp,
+  type LucideIcon,
 } from "lucide-react";
 
 import motivationImg from "@/assets/motivation-architecture.jpg";
@@ -22,15 +26,25 @@ import { AppLayout } from "@/components/app/AppLayout";
 import { CareerHero } from "@/components/app/CareerHero";
 import { Sparkline } from "@/components/app/Sparkline";
 import { greeting, useCurrentUser } from "@/data/user";
+import { useCareerOverview } from "@/data/career";
+import { useProjects } from "@/data/projects";
+import { AnimatedCard, AnimatedNumber, Stagger, StaggerItem, Skeleton } from "@/lib/animation";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
       { title: "Dashboard — CareerPilot AI" },
-      { name: "description", content: "Track your career score, resume health, roadmap progress and applications in one premium AI career workspace." },
+      {
+        name: "description",
+        content:
+          "Track your career score, resume health, roadmap progress and applications in one premium AI career workspace.",
+      },
       { property: "og:title", content: "Dashboard — CareerPilot AI" },
-      { property: "og:description", content: "Your AI career command center: scores, roadmap, mentor and applications." },
+      {
+        property: "og:description",
+        content: "Your AI career command center: scores, roadmap, mentor and applications.",
+      },
     ],
   }),
   component: DashboardPage,
@@ -50,19 +64,6 @@ const stateStyles: Record<string, string> = {
   Completed: "bg-emerald-50 text-emerald-700",
 };
 
-function Card({ className, children }: { className?: string; children: React.ReactNode }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: "easeOut" }}
-      className={cn("card-surface p-5 transition-shadow hover:shadow-lift", className)}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
 function SectionHead({ title, to }: { title: string; to?: string }) {
   return (
     <div className="flex items-center justify-between">
@@ -76,22 +77,70 @@ function SectionHead({ title, to }: { title: string; to?: string }) {
   );
 }
 
+function CardEmpty({
+  icon: Icon,
+  title,
+  hint,
+  cta,
+}: {
+  icon: LucideIcon;
+  title: string;
+  hint: string;
+  cta?: { label: string; to: string };
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center px-4 py-8 text-center">
+      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary text-muted-foreground">
+        <Icon className="h-4 w-4" strokeWidth={1.8} />
+      </span>
+      <p className="mt-3 text-[13px] font-semibold">{title}</p>
+      <p className="mt-1 max-w-[240px] text-[11.5px] leading-relaxed text-muted-foreground">
+        {hint}
+      </p>
+      {cta ? (
+        <Link
+          to={cta.to}
+          className="mt-3 rounded-lg bg-terracotta px-3 py-1.5 text-[12px] font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
+        >
+          {cta.label}
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
 function DashboardPage() {
   const { data: user, isLoading } = useCurrentUser();
+  const { data: overview } = useCareerOverview();
+  const { data: projects } = useProjects();
+  const hasProjects = (projects?.length ?? 0) > 0;
+  const hasResume = overview?.hasResume ?? false;
 
   if (isLoading || !user) {
     return (
       <AppLayout title="Loading" subtitle="Preparing your workspace">
         <div className="grid gap-4 md:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-40 animate-pulse rounded-2xl bg-card" />
+            <Skeleton key={i} className="h-40" />
           ))}
+        </div>
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <Skeleton className="h-64" />
+          <Skeleton className="h-64" />
         </div>
       </AppLayout>
     );
   }
 
   const scoreIcons = [Target, FileText, Mic, Sparkles];
+  const mainBlocker =
+    overview?.diagnosis?.blockers[0]?.problem ??
+    overview?.readiness?.blockers[0]?.problem ??
+    "Run a diagnosis to identify your biggest blocker.";
+  const nextAction =
+    overview?.diagnosis?.nextBestAction?.action ??
+    overview?.readiness?.nextAction ??
+    "Set a target role to begin your readiness assessment.";
 
   return (
     <AppLayout
@@ -106,58 +155,84 @@ function DashboardPage() {
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_270px]">
         {/* LEFT COLUMN */}
         <div className="min-w-0 space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {user.scores.map((score, i) => {
-              const Icon = scoreIcons[i] ?? Target;
-              const dark = i % 2 === 1;
-              return (
-                <Card key={score.label}>
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <span
-                        className={cn(
-                          "flex h-8 w-8 items-center justify-center rounded-lg",
-                          dark ? "bg-ink text-white" : "bg-terracotta/12 text-terracotta",
-                        )}
-                      >
-                        <Icon className="h-4 w-4" strokeWidth={1.8} />
-                      </span>
-                      <p className="text-[13.5px] font-semibold">{score.label}</p>
-                    </div>
-                    <MoreVertical className="h-4 w-4 text-muted-foreground" />
-                  </div>
+          {/* SCORE CARDS — staggered entrance with animated counters */}
+          {user.scores.length ? (
+            <Stagger className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" delay={0.08}>
+              {user.scores.map((score, i) => {
+                const Icon = scoreIcons[i] ?? Target;
+                const dark = i % 2 === 1;
+                return (
+                  <StaggerItem key={score.label}>
+                    <div className={cn("card-surface p-5 transition-shadow hover:shadow-lift")}>
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <span
+                            className={cn(
+                              "flex h-8 w-8 items-center justify-center rounded-lg",
+                              dark ? "bg-ink text-white" : "bg-terracotta/12 text-terracotta",
+                            )}
+                          >
+                            <Icon className="h-4 w-4" strokeWidth={1.8} />
+                          </span>
+                          <p className="text-[13.5px] font-semibold">{score.label}</p>
+                        </div>
+                        <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                      </div>
 
-                  <div className="mt-6 flex items-end justify-between gap-3">
-                    <div>
-                      <p className="text-[34px] font-bold leading-none tracking-[-0.03em]">
-                        {score.value}
-                        <span className="ml-1 text-[13px] font-medium text-muted-foreground">
-                          /{score.max}
-                        </span>
+                      <div className="mt-6 flex items-end justify-between gap-3">
+                        <div>
+                          <p className="text-[34px] font-bold leading-none tracking-[-0.03em]">
+                            <AnimatedNumber value={score.value} duration={1.4} />
+                            <span className="ml-1 text-[13px] font-medium text-muted-foreground">
+                              /{score.max}
+                            </span>
+                          </p>
+                        </div>
+                        <Sparkline
+                          data={score.trend}
+                          color={dark ? "var(--ink)" : "var(--terracotta)"}
+                          className="h-10 w-[96px]"
+                        />
+                      </div>
+
+                      <p className="mt-3 flex items-center gap-1 text-[12px] text-muted-foreground">
+                        {i === 0 ? <TrendingUp className="h-3.5 w-3.5 text-terracotta" /> : null}
+                        {score.note}
                       </p>
                     </div>
-                    <Sparkline
-                      data={score.trend}
-                      color={dark ? "var(--ink)" : "var(--terracotta)"}
-                      className="h-10 w-[96px]"
-                    />
-                  </div>
-
-                  <p className="mt-3 flex items-center gap-1 text-[12px] text-muted-foreground">
-                    {i === 0 ? <TrendingUp className="h-3.5 w-3.5 text-terracotta" /> : null}
-                    {score.note}
+                  </StaggerItem>
+                );
+              })}
+            </Stagger>
+          ) : (
+            <div className="card-surface flex flex-wrap items-center justify-between gap-4 p-6">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground">
+                  <Target className="h-4 w-4" strokeWidth={1.8} />
+                </span>
+                <div>
+                  <p className="text-[13.5px] font-semibold">No scores yet</p>
+                  <p className="mt-0.5 text-[12px] text-muted-foreground">
+                    Run your first diagnosis to unlock readiness, skills and evidence scores.
                   </p>
-                </Card>
-              );
-            })}
-          </div>
+                </div>
+              </div>
+              <Link
+                to="/diagnosis"
+                className="rounded-lg bg-terracotta px-3.5 py-2 text-[12.5px] font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
+              >
+                Run diagnosis →
+              </Link>
+            </div>
+          )}
 
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
             <CareerHero personImage={user.heroImage} />
 
-            <Card className="flex flex-col">
+            {/* DIAGNOSIS CARD — brutal honesty */}
+            <AnimatedCard className="flex flex-col" delay={0.3}>
               <div className="flex items-center justify-between">
-                <h3 className="text-[14.5px] font-bold">AI Mentor</h3>
+                <h3 className="text-[14.5px] font-bold">Career diagnosis</h3>
                 <span className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Online
                 </span>
@@ -169,14 +244,14 @@ function DashboardPage() {
                     <Sparkles className="h-4 w-4" />
                   </span>
                   <p className="rounded-xl rounded-tl-sm bg-secondary px-4 py-3 text-[12.5px] leading-relaxed">
-                    Hi {user.firstName}! I&apos;m here to help you with your career journey. What would
-                    you like to discuss today?
+                    <span className="font-semibold text-foreground">Career stage: </span>
+                    {overview?.readiness?.stage ?? "Not assessed yet"}
                   </p>
                 </div>
 
                 <div className="flex justify-end">
                   <p className="rounded-xl rounded-tr-sm bg-terracotta px-4 py-2.5 text-[12.5px] font-medium text-primary-foreground">
-                    How can I improve my resume?
+                    {mainBlocker}
                   </p>
                 </div>
 
@@ -186,134 +261,249 @@ function DashboardPage() {
                   </span>
                   <div>
                     <p className="rounded-xl rounded-tl-sm bg-secondary px-4 py-3 text-[12.5px] leading-relaxed">
-                      I&apos;ve analyzed your resume and found 4 key areas for improvement. Would you
-                      like to see them?
+                      <span className="font-semibold text-foreground">Do this next: </span>
+                      {nextAction}
                     </p>
                     <Link
-                      to="/resume"
+                      to="/diagnosis"
                       className="mt-3 inline-block rounded-lg border border-terracotta px-3 py-1.5 text-[12px] font-semibold text-terracotta transition-colors hover:bg-terracotta/8"
                     >
-                      View Suggestions
+                      Run full diagnosis
                     </Link>
                   </div>
                 </div>
               </div>
 
-              <Link
-                to="/mentor"
-                className="mt-5 flex items-center gap-2"
-              >
+              <Link to="/mentor" className="mt-5 flex items-center gap-2">
                 <span className="flex-1 rounded-xl border border-border px-4 py-3 text-[12.5px] text-muted-foreground">
                   Ask me anything...
                 </span>
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-terracotta text-primary-foreground">
+                <motion.span
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-terracotta text-primary-foreground"
+                >
                   <Send className="h-4 w-4" />
-                </span>
+                </motion.span>
               </Link>
-            </Card>
+            </AnimatedCard>
           </div>
 
+          {/* THREE-COLUMN SECTION */}
           <div className="grid gap-4 lg:grid-cols-3">
-            <Card>
+            {/* ROADMAP — staggered items */}
+            <AnimatedCard delay={0.1}>
               <SectionHead title="Recommended Roadmap" to="/roadmap" />
-              <div className="mt-4 space-y-1">
-                {user.roadmap.map((step, i) => (
-                  <div
-                    key={step.title}
-                    className={cn(
-                      "flex items-center gap-3 py-3",
-                      i > 0 && "border-t border-border",
-                    )}
-                  >
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-secondary text-foreground">
-                      <MapIcon className="h-3.5 w-3.5" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-semibold">{step.title}</p>
-                      {i === 0 ? (
-                        <p className="text-[11.5px] text-muted-foreground">{step.meta}</p>
-                      ) : null}
-                    </div>
-                    {i === 0 ? (
-                      <div className="flex items-center gap-2">
-                        <span className="h-1.5 w-14 overflow-hidden rounded-full bg-secondary">
-                          <span
-                            className="block h-full rounded-full bg-terracotta"
-                            style={{ width: `${step.progress}%` }}
-                          />
-                        </span>
-                        <span className="text-[12px] font-semibold">{step.progress}%</span>
-                      </div>
-                    ) : (
-                      <span
-                        className={cn(
-                          "rounded-md px-2 py-1 text-[11px] font-semibold",
-                          stateStyles[step.state],
-                        )}
-                      >
-                        {step.state}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            <Card>
-              <SectionHead title="Recent Applications" />
-              <div className="mt-4 space-y-1">
-                {user.applications.map((app, i) => (
-                  <div
-                    key={app.company}
-                    className={cn("flex items-center gap-3 py-3.5", i > 0 && "border-t border-border")}
-                  >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-[12px] font-bold">
-                      {app.initials}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-semibold">{app.company}</p>
-                      <p className="truncate text-[11.5px] text-muted-foreground">{app.role}</p>
-                    </div>
-                    <span
+              {user.roadmap.length ? (
+                <Stagger className="mt-4 space-y-1" delay={0.07}>
+                  {user.roadmap.map((step, i) => (
+                    <StaggerItem
+                      key={step.title}
                       className={cn(
-                        "shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold",
-                        statusStyles[app.status],
+                        "flex items-center gap-3 py-3",
+                        i > 0 && "border-t border-border",
                       )}
                     >
-                      {app.status}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </Card>
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-secondary text-foreground">
+                        <MapIcon className="h-3.5 w-3.5" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13px] font-semibold">{step.title}</p>
+                        {i === 0 ? (
+                          <p className="text-[11.5px] text-muted-foreground">{step.meta}</p>
+                        ) : null}
+                      </div>
+                      {i === 0 ? (
+                        <div className="flex items-center gap-2">
+                          <span className="h-1.5 w-14 overflow-hidden rounded-full bg-secondary">
+                            <motion.span
+                              initial={{ width: 0 }}
+                              animate={{ width: `${step.progress}%` }}
+                              transition={{ duration: 0.8, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                              className="block h-full rounded-full bg-terracotta"
+                            />
+                          </span>
+                          <span className="text-[12px] font-semibold">{step.progress}%</span>
+                        </div>
+                      ) : (
+                        <span
+                          className={cn(
+                            "rounded-md px-2 py-1 text-[11px] font-semibold",
+                            stateStyles[step.state],
+                          )}
+                        >
+                          {step.state}
+                        </span>
+                      )}
+                    </StaggerItem>
+                  ))}
+                </Stagger>
+              ) : (
+                <CardEmpty
+                  icon={MapIcon}
+                  title="No roadmap yet"
+                  hint="Generate a roadmap from your diagnosis to see your learning stages here."
+                  cta={{ label: "Build roadmap →", to: "/roadmap" }}
+                />
+              )}
+            </AnimatedCard>
 
-            <Card>
+            {/* APPLICATIONS — staggered items */}
+            <AnimatedCard delay={0.2}>
+              <SectionHead title="Recent Applications" />
+              {user.applications.length ? (
+                <Stagger className="mt-4 space-y-1" delay={0.07}>
+                  {user.applications.map((app, i) => (
+                    <StaggerItem
+                      key={app.company}
+                      className={cn(
+                        "flex items-center gap-3 py-3.5",
+                        i > 0 && "border-t border-border",
+                      )}
+                    >
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-[12px] font-bold">
+                        {app.initials}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13px] font-semibold">{app.company}</p>
+                        <p className="truncate text-[11.5px] text-muted-foreground">{app.role}</p>
+                      </div>
+                      <span
+                        className={cn(
+                          "shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold",
+                          statusStyles[app.status],
+                        )}
+                      >
+                        {app.status}
+                      </span>
+                    </StaggerItem>
+                  ))}
+                </Stagger>
+              ) : (
+                <CardEmpty
+                  icon={Briefcase}
+                  title="No applications tracked"
+                  hint="Explore the market to find roles worth applying to, and they'll show up here."
+                  cta={{ label: "Explore market →", to: "/market" }}
+                />
+              )}
+            </AnimatedCard>
+
+            {/* SKILLS — animated bars */}
+            <AnimatedCard delay={0.3}>
               <SectionHead title="Top Skills" to="/resume" />
               <div className="mt-4 space-y-3.5">
-                {user.skills.map((skill) => (
-                  <div key={skill.name} className="flex items-center gap-3">
-                    <p className="w-[110px] shrink-0 truncate text-[12.5px]">{skill.name}</p>
-                    <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-secondary">
-                      <motion.span
-                        initial={{ width: 0 }}
-                        animate={{ width: `${skill.level}%` }}
-                        transition={{ duration: 0.7, ease: "easeOut" }}
-                        className="block h-full rounded-full bg-terracotta"
-                      />
-                    </span>
-                    <span className="w-9 shrink-0 text-right text-[12px] font-semibold">
-                      {skill.level}%
-                    </span>
-                  </div>
-                ))}
+                {user.skills.length ? (
+                  user.skills.map((skill, i) => (
+                    <motion.div
+                      key={skill.name}
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.3 + i * 0.06, duration: 0.3 }}
+                      className="flex items-center gap-3"
+                    >
+                      <p className="w-[110px] shrink-0 truncate text-[12.5px]">{skill.name}</p>
+                      <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-secondary">
+                        <motion.span
+                          initial={{ width: 0 }}
+                          animate={{ width: `${skill.level}%` }}
+                          transition={{
+                            duration: 0.7,
+                            delay: 0.4 + i * 0.06,
+                            ease: [0.22, 1, 0.36, 1],
+                          }}
+                          className="block h-full rounded-full bg-terracotta"
+                        />
+                      </span>
+                      <span className="w-9 shrink-0 text-right text-[12px] font-semibold">
+                        {skill.level}%
+                      </span>
+                    </motion.div>
+                  ))
+                ) : (
+                  <CardEmpty
+                    icon={Sparkles}
+                    title="No skills added yet"
+                    hint="Pick the tools you know during onboarding and your skill profile appears here."
+                    cta={{ label: "Add skills →", to: "/onboarding" }}
+                  />
+                )}
               </div>
-            </Card>
+            </AnimatedCard>
           </div>
+
+          {/* MARKET REALITY BANNER — urgent CTA */}
+          <AnimatedCard className="border-terracotta/15" delay={0.15}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-terracotta/10">
+                  <BarChart3 className="h-4 w-4 text-terracotta" strokeWidth={1.8} />
+                </span>
+                <div>
+                  <h3 className="text-[14px] font-bold">Market Reality</h3>
+                  {user.goal ? (
+                    <p className="text-[12px] text-muted-foreground">
+                      What employers actually demand for{" "}
+                      <span className="font-semibold text-foreground">{user.goal}</span>
+                    </p>
+                  ) : (
+                    <p className="text-[12px] text-muted-foreground">
+                      See what the real job market requires — no sugar-coating
+                    </p>
+                  )}
+                </div>
+              </div>
+              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                <Link
+                  to="/market"
+                  className="shrink-0 rounded-lg bg-terracotta px-3 py-1.5 text-[12px] font-semibold text-primary-foreground"
+                >
+                  See the truth →
+                </Link>
+              </motion.div>
+            </div>
+          </AnimatedCard>
+
+          {/* EVIDENCE CTA — brutal honesty */}
+          {!hasResume && !hasProjects && (
+            <AnimatedCard className="border-terracotta/20 bg-terracotta/[0.03]" delay={0.2}>
+              <div className="flex items-start gap-3">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-terracotta/10">
+                  <FolderOpen className="h-4 w-4 text-terracotta" strokeWidth={1.8} />
+                </span>
+                <div className="flex-1">
+                  <h3 className="text-[14px] font-bold">You have zero evidence</h3>
+                  <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+                    Right now every skill on your profile is a claim. No resume. No projects. No
+                    proof. Recruiters need evidence — and you have none. Fix this today.
+                  </p>
+                  <div className="mt-3 flex gap-2">
+                    <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                      <Link
+                        to="/onboarding"
+                        className="rounded-lg bg-terracotta px-3 py-1.5 text-[12px] font-semibold text-primary-foreground"
+                      >
+                        Add projects now →
+                      </Link>
+                    </motion.div>
+                    <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                      <Link
+                        to="/resume"
+                        className="rounded-lg border border-border px-3 py-1.5 text-[12px] font-semibold text-muted-foreground transition-colors hover:border-terracotta hover:text-terracotta"
+                      >
+                        Upload resume
+                      </Link>
+                    </motion.div>
+                  </div>
+                </div>
+              </div>
+            </AnimatedCard>
+          )}
         </div>
 
         {/* RIGHT COLUMN */}
         <div className="space-y-4">
-          <Card className="overflow-hidden p-0">
+          <AnimatedCard className="overflow-hidden p-0" delay={0.15}>
             <div className="flex items-center justify-between px-5 pt-5">
               <h3 className="text-[14.5px] font-bold">Today&apos;s Plan</h3>
               <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -337,34 +527,45 @@ function DashboardPage() {
               </div>
             </div>
 
-            <div className="space-y-3.5 border-t border-border px-5 py-4">
-              {user.plan.map((item) => (
-                <div key={item.id} className="flex items-center gap-2.5">
-                  {item.done ? (
-                    <CheckCircle2 className="h-[18px] w-[18px] shrink-0 text-ink" />
-                  ) : (
-                    <Circle className="h-[18px] w-[18px] shrink-0 text-muted-foreground/50" />
-                  )}
-                  <p
-                    className={cn(
-                      "text-[12.5px]",
-                      item.done ? "text-foreground" : "text-muted-foreground",
+            {user.plan.length ? (
+              <Stagger className="space-y-3.5 border-t border-border px-5 py-4" delay={0.06}>
+                {user.plan.map((item) => (
+                  <StaggerItem key={item.id} className="flex items-center gap-2.5">
+                    {item.done ? (
+                      <CheckCircle2 className="h-[18px] w-[18px] shrink-0 text-ink" />
+                    ) : (
+                      <Circle className="h-[18px] w-[18px] shrink-0 text-muted-foreground/50" />
                     )}
-                  >
-                    {item.label}
-                  </p>
-                </div>
-              ))}
-              <Link
-                to="/roadmap"
-                className="inline-block pt-1 text-[12px] font-semibold text-terracotta hover:underline"
-              >
-                View Full Plan →
-              </Link>
-            </div>
-          </Card>
+                    <p
+                      className={cn(
+                        "text-[12.5px]",
+                        item.done ? "text-foreground" : "text-muted-foreground",
+                      )}
+                    >
+                      {item.label}
+                    </p>
+                  </StaggerItem>
+                ))}
+                <Link
+                  to="/roadmap"
+                  className="inline-block pt-1 text-[12px] font-semibold text-terracotta hover:underline"
+                >
+                  View Full Plan →
+                </Link>
+              </Stagger>
+            ) : (
+              <div className="border-t border-border px-5 py-4">
+                <CardEmpty
+                  icon={Calendar}
+                  title="No plan yet"
+                  hint="Generate your roadmap to unlock weekly goals that show up here."
+                  cta={{ label: "Build roadmap →", to: "/roadmap" }}
+                />
+              </div>
+            )}
+          </AnimatedCard>
 
-          <Card className="border-ink bg-ink text-white">
+          <AnimatedCard className="border-ink bg-ink text-white" delay={0.25}>
             <div className="flex items-start gap-3">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10">
                 <FileText className="h-4 w-4" />
@@ -372,52 +573,59 @@ function DashboardPage() {
               <div>
                 <h3 className="text-[14px] font-bold">AI Resume Review</h3>
                 <p className="mt-1.5 text-[12.5px] leading-relaxed text-white/60">
-                  Get your resume analyzed by AI and improve your ATS score.
+                  {!hasResume
+                    ? "You haven't uploaded a resume yet. Without one, you're invisible to ATS systems."
+                    : "Get your resume analyzed and find out exactly where it falls short."}
                 </p>
               </div>
             </div>
-            <Link
-              to="/resume"
-              className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-terracotta px-4 py-2.5 text-[13px] font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
-            >
-              Upload Resume →
-            </Link>
-          </Card>
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <Link
+                to="/resume"
+                className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-terracotta px-4 py-2.5 text-[13px] font-semibold text-primary-foreground"
+              >
+                {hasResume ? "Re-analyze Resume →" : "Upload Resume →"}
+              </Link>
+            </motion.div>
+          </AnimatedCard>
 
-          <Card>
+          <AnimatedCard delay={0.35}>
             <h3 className="text-[14.5px] font-bold">Quick Actions</h3>
-            <div className="mt-4 grid grid-cols-3 gap-2">
+            <Stagger className="mt-4 grid grid-cols-3 gap-2" delay={0.05}>
               {[
                 { label: "AI Chat", icon: MessageCircle, to: "/mentor" },
                 { label: "Roadmap", icon: MapIcon, to: "/roadmap" },
-                { label: "Find Jobs", icon: Search, to: "/roadmap" },
-                { label: "Mock Interview", icon: Mic, to: "/mentor" },
+                { label: "Market Reality", icon: BarChart3, to: "/market" },
+                { label: "Recruiter Audit", icon: Mic, to: "/recruiter" },
                 { label: "Resume Review", icon: FileText, to: "/resume" },
-                { label: "Skills Test", icon: Target, to: "/resume" },
+                { label: "Diagnosis", icon: Target, to: "/diagnosis" },
               ].map(({ label, icon: Icon, to }) => (
-                <Link
-                  key={label}
-                  to={to}
-                  className="flex flex-col items-center gap-2 rounded-xl border border-border px-2 py-4 text-center transition-transform hover:-translate-y-0.5 hover:border-terracotta/40"
-                >
-                  <Icon className="h-4 w-4" strokeWidth={1.7} />
-                  <span className="text-[10.5px] leading-tight text-muted-foreground">{label}</span>
-                </Link>
+                <StaggerItem key={label}>
+                  <Link
+                    to={to}
+                    className="flex flex-col items-center gap-2 rounded-xl border border-border px-2 py-4 text-center transition-all hover:-translate-y-0.5 hover:border-terracotta/40 hover:shadow-lift"
+                  >
+                    <Icon className="h-4 w-4" strokeWidth={1.7} />
+                    <span className="text-[10.5px] leading-tight text-muted-foreground">
+                      {label}
+                    </span>
+                  </Link>
+                </StaggerItem>
               ))}
-            </div>
-          </Card>
+            </Stagger>
+          </AnimatedCard>
         </div>
       </div>
 
-      {/* MOTIVATION */}
+      {/* MOTIVATION — serious, editorial tone */}
       <motion.section
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
+        transition={{ duration: 0.6, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
         className="mt-4 grid overflow-hidden rounded-2xl bg-ink text-white lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_260px]"
       >
         <div className="flex items-start gap-4 p-8">
-          <span className="text-4xl leading-none text-terracotta">“</span>
+          <span className="text-4xl leading-none text-terracotta">"</span>
           <p className="max-w-md">
             <span className="text-[19px] font-semibold leading-snug">
               The only way to do great work is to love what you do.
@@ -430,10 +638,10 @@ function DashboardPage() {
 
         <div className="flex flex-col justify-center gap-2 border-white/10 p-8 lg:border-l">
           <p className="text-[13.5px] font-semibold">
-            Daily <span className="text-terracotta">Motivation</span>
+            Daily <span className="text-terracotta">Reality Check</span>
           </p>
           <p className="text-[13px] leading-relaxed text-white/60">
-            Believe in your abilities and you&apos;re halfway there.
+            The market doesn't care about your feelings. Build proof or get left behind.
           </p>
         </div>
 

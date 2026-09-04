@@ -89,7 +89,10 @@ export function useToggleMilestone() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, completed }: { id: string; completed: boolean }) => {
-      const { error } = await supabase.from("roadmap_milestones").update({ completed }).eq("id", id);
+      const { error } = await supabase
+        .from("roadmap_milestones")
+        .update({ completed })
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["roadmap"] }),

@@ -6,7 +6,9 @@ import { ArrowUpRight, Send, Sparkles, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppLayout } from "@/components/app/AppLayout";
+import { useCareerOverview } from "@/data/career";
 import { useChatHistory, useSendMentorMessage } from "@/data/mentor";
+import { useRoadmap } from "@/data/roadmap";
 import { friendlyError, useCurrentUser } from "@/data/user";
 import { cn } from "@/lib/utils";
 
@@ -14,9 +16,16 @@ export const Route = createFileRoute("/_authenticated/mentor")({
   head: () => ({
     meta: [
       { title: "AI Career Mentor — CareerPilot AI" },
-      { name: "description", content: "Talk to your AI career mentor about roles, skills, interviews and next steps with tailored career insights." },
+      {
+        name: "description",
+        content:
+          "Talk to your AI career mentor about roles, skills, interviews and next steps with tailored career insights.",
+      },
       { property: "og:title", content: "AI Career Mentor — CareerPilot AI" },
-      { property: "og:description", content: "A focused AI conversation built around your career goal." },
+      {
+        property: "og:description",
+        content: "A focused AI conversation built around your career goal.",
+      },
     ],
   }),
   component: MentorPage,
@@ -34,41 +43,60 @@ const SUGGESTIONS = [
 
 function MentorPage() {
   const { data: user } = useCurrentUser();
+  const { data: overview } = useCareerOverview();
+  const { data: roadmap } = useRoadmap();
   const { data: history } = useChatHistory();
   const sendMessage = useSendMentorMessage();
   const [input, setInput] = useState("");
+  const [optimisticUserMsg, setOptimisticUserMsg] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const thinking = sendMessage.isPending;
 
+  const gaps = overview?.gaps ?? null;
+  const readiness = overview?.readiness ?? null;
+  const nextStages = (roadmap?.stages ?? []).filter((stage) => !stage.completed);
+  const actions = [
+    ...(readiness?.nextAction ? [readiness.nextAction] : []),
+    ...nextStages.slice(0, 2).map((stage) => stage.title),
+  ].slice(0, 3);
+
   const messages: Msg[] = [
     {
       role: "ai" as const,
-      text: "I'm your career mentor. I've reviewed your profile, scores and roadmap — ask me anything about your next move.",
+      text: "I'm your career mentor — I can see your profile, skills and target role. Ask me anything about roles, skills, interviews or your next step.",
     },
     ...(history ?? []).map((m) => ({
       role: m.role === "assistant" ? ("ai" as const) : ("user" as const),
       text: m.content,
     })),
+    ...(optimisticUserMsg ? [{ role: "user" as const, text: optimisticUserMsg }] : []),
   ];
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [history?.length, thinking]);
+  }, [messages.length, thinking]);
 
   function send(text: string) {
     const value = text.trim();
     if (!value || thinking) return;
     setInput("");
+    setOptimisticUserMsg(value);
     sendMessage.mutate(value, {
       onError: (error) => toast.error(friendlyError(error, "The mentor couldn't reply just now.")),
-      onSettled: () => inputRef.current?.focus(),
+      onSettled: () => {
+        setOptimisticUserMsg(null);
+        inputRef.current?.focus();
+      },
     });
   }
 
   return (
-    <AppLayout title="AI Career Mentor" subtitle="Guidance shaped by your goals, scores and roadmap">
+    <AppLayout
+      title="AI Career Mentor"
+      subtitle="Guidance shaped by your goals, scores and roadmap"
+    >
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
         <div className="card-surface flex min-h-[640px] flex-col p-0">
           <div className="flex items-center justify-between border-b border-border px-6 py-4">
@@ -195,11 +223,30 @@ function MentorPage() {
             <h3 className="text-[14.5px] font-bold">Career Insights</h3>
             <div className="mt-4 space-y-4">
               {[
-                { label: "Goal alignment", value: `${user?.goalProgress ?? 0}%`, note: "on track for your target role" },
-                { label: "Skill gaps", value: "6", note: "requirements left to close" },
-                { label: "Market demand", value: "High", note: "for full stack roles in your region" },
+                {
+                  label: "Goal alignment",
+                  value: `${user?.goalProgress ?? 0}%`,
+                  note: "on track for your target role",
+                },
+                gaps
+                  ? {
+                      label: "Skill gaps",
+                      value: String(gaps.length),
+                      note: "requirements left to close",
+                    }
+                  : { label: "Skill gaps", value: "—", note: "run your diagnosis to see them" },
+                readiness
+                  ? {
+                      label: "Readiness",
+                      value: `${readiness.overall}%`,
+                      note: readiness.stage ?? "for your target role",
+                    }
+                  : { label: "Readiness", value: "—", note: "run your diagnosis for a score" },
               ].map((item) => (
-                <div key={item.label} className="border-b border-border pb-4 last:border-0 last:pb-0">
+                <div
+                  key={item.label}
+                  className="border-b border-border pb-4 last:border-0 last:pb-0"
+                >
                   <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
                     {item.label}
                   </p>
@@ -215,11 +262,17 @@ function MentorPage() {
 
           <div className="card-surface bg-ink p-5 text-white">
             <h3 className="text-[14px] font-bold">Recommended Actions</h3>
-            <ul className="mt-3 space-y-2.5 text-[12.5px] text-white/70">
-              <li>Ship one deployed full stack project</li>
-              <li>Complete the Node.js & Express stage</li>
-              <li>Run two mock interviews this week</li>
-            </ul>
+            {actions.length ? (
+              <ul className="mt-3 space-y-2.5 text-[12.5px] text-white/70">
+                {actions.map((action, i) => (
+                  <li key={i}>{action}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-3 text-[12.5px] leading-relaxed text-white/70">
+                Run your career diagnosis or generate a roadmap to unlock personalized actions.
+              </p>
+            )}
           </div>
         </div>
       </div>

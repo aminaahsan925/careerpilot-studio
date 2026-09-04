@@ -18,13 +18,29 @@ export type Readiness = {
   nextAction: string;
 };
 
-const WEIGHTS: Record<string, number> = {
+const BASE_WEIGHTS: Record<string, number> = {
   "Technical Skills": 0.3,
   "Project Evidence": 0.2,
   Resume: 0.2,
   "Portfolio Evidence": 0.15,
   "Interview Readiness": 0.15,
 };
+
+/**
+ * When no resume is uploaded, redistribute the Resume weight (20%) to
+ * Project Evidence (+10%) and Portfolio Evidence (+10%) so the overall
+ * score is NOT permanently capped at 80%.
+ */
+function effectiveWeights(hasResume: boolean): Record<string, number> {
+  if (hasResume) return { ...BASE_WEIGHTS };
+  return {
+    "Technical Skills": 0.3,
+    "Project Evidence": 0.3,
+    Resume: 0,
+    "Portfolio Evidence": 0.25,
+    "Interview Readiness": 0.15,
+  };
+}
 
 const pct = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
 
@@ -44,7 +60,15 @@ export function computeReadiness(state: CareerState): Readiness {
   let technicalWhy: string;
   if (gaps.length) {
     const scored = gaps.reduce(
-      (sum, g) => sum + (g.status === "matched" ? 1 : g.status === "partial" ? 0.5 : g.status === "no_evidence" ? 0.4 : 0),
+      (sum, g) =>
+        sum +
+        (g.status === "matched"
+          ? 1
+          : g.status === "partial"
+            ? 0.5
+            : g.status === "no_evidence"
+              ? 0.4
+              : 0),
       0,
     );
     technical = pct((scored / gaps.length) * 100);
@@ -63,20 +87,24 @@ export function computeReadiness(state: CareerState): Readiness {
     ? pct((projectBacked.length / evidenceBase) * 100)
     : 0;
   const projectWhy = state.skills.length
-    ? `${projectBacked.length} of ${state.skills.length} skills are demonstrated by a project or repository.`
+    ? projectBacked.length === 0
+      ? "Zero skills are backed by a project. Everything is a claim."
+      : `${projectBacked.length} of ${state.skills.length} skills have project evidence. The rest are unproven.`
     : "No skills or projects recorded yet.";
 
   /* --- Resume --- */
   const resumeScore = state.resume.hasResume ? pct(state.resume.resumeScore ?? 0) : 0;
   const resumeWhy = state.resume.hasResume
     ? `Resume scored ${state.resume.resumeScore}/100 with an ATS score of ${state.resume.atsScore}/100.`
-    : "No resume has been uploaded and analysed.";
+    : "No resume uploaded. You cannot pass ATS screening without one.";
 
   /* --- Portfolio evidence (any non-claim source at all) --- */
   const portfolio = state.skills.length ? pct((evidenced.length / evidenceBase) * 100) : 0;
   const portfolioWhy = state.skills.length
-    ? `${evidenced.length} of ${state.skills.length} skills have supporting evidence; the rest are claims only.`
-    : "Nothing has been submitted as evidence yet.";
+    ? evidenced.length === 0
+      ? "Nothing has been verified. All skills are self-reported claims."
+      : `${evidenced.length} of ${state.skills.length} skills have evidence. The rest are claims only.`
+    : "Nothing submitted as evidence yet.";
 
   /* --- Interview readiness: roadmap progress + real interview activity --- */
   const roadmapPct = state.roadmap.total
@@ -88,7 +116,7 @@ export function computeReadiness(state: CareerState): Readiness {
   const interview = pct(roadmapPct * 0.7 + Math.min(interviewed, 3) * 10);
   const interviewWhy = state.roadmap.total
     ? `${state.roadmap.completed}/${state.roadmap.total} roadmap stages complete; ${interviewed} interview-stage application(s).`
-    : "No roadmap generated yet, so preparation progress can't be measured.";
+    : "No roadmap generated. You have no structured preparation plan.";
 
   const breakdown: ReadinessCategory[] = [
     { label: "Technical Skills", score: technical, explanation: technicalWhy },
@@ -98,9 +126,9 @@ export function computeReadiness(state: CareerState): Readiness {
     { label: "Interview Readiness", score: interview, explanation: interviewWhy },
   ];
 
-  const overall = pct(
-    breakdown.reduce((sum, c) => sum + c.score * (WEIGHTS[c.label] ?? 0), 0),
-  );
+  const weights = effectiveWeights(state.resume.hasResume);
+
+  const overall = pct(breakdown.reduce((sum, c) => sum + c.score * (weights[c.label] ?? 0), 0));
 
   /* --- Blockers: problem → evidence → why it matters → what to do next --- */
   const blockers: Blocker[] = [];
@@ -109,65 +137,85 @@ export function computeReadiness(state: CareerState): Readiness {
     .filter((g) => g.priority === "high" && g.status !== "matched")
     .slice(0, 3)) {
     blockers.push({
-      problem: `Missing ${gap.skill}`,
+      problem: `You are missing ${gap.skill}`,
       evidence:
         gap.evidence ??
-        `The target job lists ${gap.skill} as required and your profile has no demonstrated ${gap.skill} work.`,
-      impact: gap.whyItMatters ?? "Likely weakness for this role.",
-      action: gap.proofTask ?? gap.action ?? `Build something that demonstrates ${gap.skill}.`,
+        `The target job requires ${gap.skill}. You have zero demonstrated work in this area.`,
+      impact: gap.whyItMatters ?? "This is a dealbreaker for this role. Employers will skip you.",
+      action: gap.proofTask ?? gap.action ?? `Build something that demonstrates ${gap.skill}. Now.`,
     });
   }
 
   if (!state.resume.hasResume) {
-    blockers.push({
-      problem: "No analysed resume",
-      evidence: "You haven't uploaded a resume for analysis yet.",
-      impact: "CareerPilot can't verify any of your claimed skills or check ATS compatibility.",
-      action: "Upload your resume on the Resume page to get a real analysis.",
-    });
+    const hasProjects = state.projects.length > 0;
+    if (hasProjects) {
+      blockers.push({
+        problem: "No resume uploaded",
+        evidence:
+          "You have projects but no resume. ATS systems will filter you out before a human ever sees your work.",
+        impact:
+          "Without a resume, you cannot pass automated screening. Your projects are invisible to most recruiters.",
+        action: "Upload your resume on the Resume page. This is not optional — it is table stakes.",
+      });
+    } else {
+      blockers.push({
+        problem: "You have zero evidence",
+        evidence: "No resume. No projects. Nothing to show an employer.",
+        impact: "Every skill you listed is a claim. Recruiters need proof, and you have none.",
+        action:
+          "Add your projects or upload your resume. Until you do, your readiness score is meaningless.",
+      });
+    }
   }
 
   if (state.skills.length && projectBacked.length === 0) {
     blockers.push({
-      problem: "No project evidence",
-      evidence: `All ${state.skills.length} of your skills are claims with no project or repository behind them.`,
-      impact: "Recruiters discount unproven skills, and evidence is what separates similar candidates.",
-      action: "Build one portfolio project that demonstrates your most important target skill.",
+      problem: "All your skills are claims",
+      evidence: `You listed ${state.skills.length} skills but zero have a project or repository behind them.`,
+      impact:
+        "Unproven skills are worthless in a job application. Evidence is what separates candidates.",
+      action:
+        "Build one portfolio project that demonstrates your most important target skill. This week.",
     });
   }
 
   if (!state.targetJob && state.targetRole) {
     blockers.push({
-      problem: "No specific target job analysed",
-      evidence: `Your goal is ${state.targetRole}, but no real job description has been analysed.`,
-      impact: "Gap analysis stays generic without a real posting to compare against.",
-      action: "Paste a real internship or job description on the Career Target page.",
+      problem: "No real job analysed",
+      evidence: `Your goal is ${state.targetRole}, but you haven't analysed a single real job posting.`,
+      impact:
+        "Your gap analysis is generic guesswork. Without a real posting, you're preparing blind.",
+      action:
+        "Paste a real job description on the Career Target page. Know exactly what they want.",
     });
   }
 
   if (!state.targetRole) {
     blockers.unshift({
       problem: "No career target chosen",
-      evidence: "No target role is set on your profile.",
-      impact: "Everything downstream — gaps, roadmap, readiness — needs a destination.",
-      action: "Pick a target role, or run career discovery to get suggestions.",
+      evidence: "You haven't picked a target role. Everything is directionless.",
+      impact:
+        "Without a destination, gaps, roadmap, and readiness are all meaningless. You can't prepare for 'something'.",
+      action: "Pick a target role. Run career discovery if you're unsure — but pick one.",
     });
   }
 
   /* --- Stage + next best action --- */
+  const hasProjects = state.projects.length > 0;
   let stage: string;
-  if (!state.targetRole) stage = "Discovering direction";
-  else if (!state.resume.hasResume) stage = "Assessing profile";
+  if (!state.targetRole) stage = "No direction yet";
+  else if (!state.resume.hasResume && !hasProjects) stage = "No evidence yet";
   else if (!gaps.length) stage = "Identifying gaps";
-  else if (state.roadmap.total && state.roadmap.completed >= state.roadmap.total) stage = "Applying";
-  else if (projectBacked.length === 0) stage = "Building projects";
+  else if (state.roadmap.total && state.roadmap.completed >= state.roadmap.total)
+    stage = "Applying";
+  else if (projectBacked.length === 0 && !hasProjects) stage = "Skills without proof";
   else if (overall >= 70) stage = "Job ready";
-  else stage = "Closing skill gaps";
+  else stage = "Closing gaps";
 
   const nextAction =
     blockers[0]?.action ??
-    (state.weeklyGoals.find((g) => !g.completed)?.title ??
-      "Keep working through your roadmap and log the evidence you create.");
+    state.weeklyGoals.find((g) => !g.completed)?.title ??
+    "Keep working through your roadmap and log the evidence you create.";
 
   return { overall, breakdown, blockers: blockers.slice(0, 5), stage, nextAction };
 }

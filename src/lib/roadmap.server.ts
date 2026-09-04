@@ -46,7 +46,9 @@ export async function generateRoadmapFor(supabase: Client, userId: string) {
   );
 
   const parsed = parseJsonObject<Record<string, unknown>>(raw);
-  const rawStages = Array.isArray(parsed["stages"]) ? (parsed["stages"] as Record<string, unknown>[]) : [];
+  const rawStages = Array.isArray(parsed["stages"])
+    ? (parsed["stages"] as Record<string, unknown>[])
+    : [];
   if (!rawStages.length) throw new Error("The roadmap couldn't be generated. Please try again.");
 
   const stages = rawStages.slice(0, 6).map((s, i) => ({

@@ -1,110 +1,434 @@
-import { useRef } from "react";
+import { useState, useRef } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { motion } from "motion/react";
-import { AlertTriangle, CheckCircle2, FileText, Loader2, Sparkles, Upload } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  FileText,
+  Loader2,
+  Sparkles,
+  Upload,
+  FileCode2,
+  Award,
+  Check,
+  Zap,
+  ShieldCheck,
+  TrendingUp,
+  FileUp,
+  RefreshCw,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { AppLayout } from "@/components/app/AppLayout";
 import { useLatestAnalysis, useLatestResume, useUploadAndAnalyze } from "@/data/resume";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/resume")({
   head: () => ({
     meta: [
-      { title: "Resume & Career Analysis — CareerPilot AI" },
-      { name: "description", content: "Upload your resume for a real ATS score, evidence-aware skill detection, and improvement recommendations." },
+      { title: "Resume Intelligence & ATS Audit — CareerPilot AI" },
+      {
+        name: "description",
+        content:
+          "Upload your resume for real-time ATS scoring, skill extraction, and recruiter positioning feedback.",
+      },
     ],
   }),
   component: ResumePage,
 });
 
-function Ring({ value, label }: { value: number; label: string }) {
-  const r = 46;
+/* ------------------------------------------------------------------ */
+/* Radial Score Ring Component                                         */
+/* ------------------------------------------------------------------ */
+
+function ScoreRing({ value, label, sublabel }: { value: number; label: string; sublabel: string }) {
+  const r = 44;
   const c = 2 * Math.PI * r;
+  const getColor = (v: number) => {
+    if (v >= 80) return "stroke-emerald-500";
+    if (v >= 65) return "stroke-terracotta";
+    return "stroke-amber-500";
+  };
+
   return (
-    <div className="flex flex-col items-center">
-      <div className="relative h-[120px] w-[120px]">
+    <div className="flex flex-col items-center text-center p-4 rounded-2xl border border-border/80 bg-background/50">
+      <div className="relative h-[110px] w-[110px]">
         <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
           <circle cx="60" cy="60" r={r} fill="none" stroke="var(--secondary)" strokeWidth="8" />
-          <motion.circle cx="60" cy="60" r={r} fill="none" stroke="var(--terracotta)" strokeWidth="8" strokeLinecap="round" strokeDasharray={c} initial={{ strokeDashoffset: c }} animate={{ strokeDashoffset: c - (value / 100) * c }} transition={{ duration: 0.9, ease: "easeOut" }} />
+          <motion.circle
+            cx="60"
+            cy="60"
+            r={r}
+            fill="none"
+            className={cn("transition-all duration-1000", getColor(value))}
+            strokeWidth="8"
+            strokeLinecap="round"
+            strokeDasharray={c}
+            initial={{ strokeDashoffset: c }}
+            animate={{ strokeDashoffset: c - (value / 100) * c }}
+            transition={{ duration: 1, ease: "easeOut" }}
+          />
         </svg>
-        <span className="absolute inset-0 flex items-center justify-center text-[26px] font-bold tracking-[-0.03em]">{value}</span>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-[26px] font-extrabold leading-none tracking-tight text-foreground">
+            {value}
+          </span>
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase">/ 100</span>
+        </div>
       </div>
-      <p className="mt-2 text-[12.5px] text-muted-foreground">{label}</p>
+      <p className="mt-3 text-[13.5px] font-bold text-foreground">{label}</p>
+      <p className="text-[11.5px] text-muted-foreground mt-0.5">{sublabel}</p>
     </div>
   );
 }
 
-function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="mt-4 text-[12.5px] leading-relaxed text-muted-foreground">{children}</p>;
+function EmptyStateMessage({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="py-8 text-center">
+      <Sparkles className="mx-auto h-8 w-8 text-muted-foreground/40" />
+      <p className="mt-2 text-[14px] font-semibold text-foreground">{title}</p>
+      <p className="mt-1 text-[12.5px] text-muted-foreground max-w-sm mx-auto">{description}</p>
+    </div>
+  );
 }
+
+/* ------------------------------------------------------------------ */
+/* Main Page                                                           */
+/* ------------------------------------------------------------------ */
 
 function ResumePage() {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const { data: resume } = useLatestResume();
   const { data: analysis, isLoading } = useLatestAnalysis();
   const upload = useUploadAndAnalyze();
 
-  function chooseFile(file: File | undefined) {
+  function processFile(file: File | undefined) {
     if (!file) return;
     upload.mutate(file, {
-      onSuccess: () => toast.success("Resume analyzed", { description: "Your evidence and readiness have been refreshed." }),
-      onError: (error) => toast.error(error instanceof Error ? error.message : "We couldn't analyze that resume."),
+      onSuccess: () =>
+        toast.success("Resume analyzed successfully!", {
+          description: "ATS score, skill extraction, and AI recommendations updated.",
+        }),
+      onError: (error) =>
+        toast.error(error instanceof Error ? error.message : "Could not process resume file."),
     });
   }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    processFile(file);
+  };
 
   const busy = upload.isPending || isLoading;
 
   return (
-    <AppLayout title="Resume & Career Analysis" subtitle="Real resume feedback and evidence for your career diagnosis">
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="space-y-4">
-          <div className="card-surface p-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <h3 className="text-[14.5px] font-bold">Resume Upload</h3>
-                <p className="mt-1 text-[12.5px] text-muted-foreground">PDF, DOCX, or TXT up to 5MB. Your resume stays private.</p>
+    <AppLayout
+      title="Resume & ATS Intelligence"
+      subtitle="Recruiter-grade resume parsing, ATS scoring, and position rewrites"
+    >
+      <div className="space-y-6 pb-12">
+        {/* INTERACTIVE UPLOAD DROPZONE */}
+        <div
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={cn(
+            "card-surface relative overflow-hidden p-7 transition-all duration-300 border-2 border-dashed",
+            isDragging
+              ? "border-terracotta bg-terracotta/5 shadow-2xl scale-[1.005]"
+              : "border-border/80 hover:border-terracotta/40"
+          )}
+        >
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".pdf,.docx,.txt"
+            className="hidden"
+            onChange={(e) => {
+              processFile(e.target.files?.[0]);
+              e.currentTarget.value = "";
+            }}
+          />
+
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div
+                className={cn(
+                  "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl transition-colors",
+                  isDragging ? "bg-terracotta text-white" : "bg-terracotta/10 text-terracotta"
+                )}
+              >
+                {upload.isPending ? (
+                  <Loader2 className="h-7 w-7 animate-spin" />
+                ) : (
+                  <FileUp className="h-7 w-7" strokeWidth={1.8} />
+                )}
               </div>
-              <button type="button" disabled={busy} onClick={() => inputRef.current?.click()} className="inline-flex items-center gap-2 rounded-lg bg-terracotta px-4 py-2.5 text-[13px] font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60">
-                {upload.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                {upload.isPending ? "Analyzing…" : "Upload Resume"}
-              </button>
-              <input ref={inputRef} type="file" accept=".pdf,.docx,.txt" className="hidden" onChange={(event) => { chooseFile(event.target.files?.[0]); event.currentTarget.value = ""; }} />
-            </div>
-            <div className="mt-5 flex items-center gap-3 rounded-xl border border-dashed border-border px-5 py-6">
-              <FileText className="h-5 w-5 text-terracotta" />
+
               <div>
-                <p className="text-[13px] font-medium">{resume?.file_name ?? "No resume analyzed yet"}</p>
-                <p className="mt-0.5 text-[12px] text-muted-foreground">
-                  {resume ? "Latest saved resume" : "Upload a text-based PDF, DOCX, or TXT file to begin."}
+                <h3 className="text-[16px] font-bold text-foreground">
+                  {upload.isPending
+                    ? "Analyzing Resume Structure..."
+                    : isDragging
+                      ? "Drop your resume file here!"
+                      : "Upload or Drag & Drop Resume"}
+                </h3>
+                <p className="mt-1 text-[13px] text-muted-foreground">
+                  Supported formats: <strong className="text-foreground">PDF, DOCX, TXT</strong> (Up to 5MB)
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="rounded-md bg-secondary/80 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                    ATS Compatible Parser
+                  </span>
+                  <span className="rounded-md bg-secondary/80 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                    Private & Encrypted
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-3">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => inputRef.current?.click()}
+                className="inline-flex items-center gap-2 rounded-xl bg-terracotta px-6 py-3 text-[13.5px] font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5 disabled:opacity-50 shadow-lift"
+              >
+                {upload.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Processing…
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4" /> Select Resume File
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* ACTIVE SAVED FILE BANNER */}
+          {resume && !upload.isPending && (
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4 text-[12.5px]">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <FileText className="h-4 w-4 text-terracotta" />
+                <span>Active File: <strong className="text-foreground font-semibold">{resume.file_name}</strong></span>
+              </div>
+              <span className="text-[11.5px] text-muted-foreground">
+                Uploaded {new Date(resume.created_at).toLocaleDateString()}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* ANALYSIS RESULTS DASHBOARD */}
+        {analysis ? (
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(300px,0.8fr)]">
+            {/* LEFT COLUMN: SCORES, SUMMARY, STRENGTHS, WEAKNESSES & RECOMMENDATIONS */}
+            <div className="space-y-6">
+              {/* RADIAL METRIC GAUGES */}
+              <div className="card-surface p-6">
+                <div className="flex items-center justify-between border-b border-border pb-4 mb-6">
+                  <div>
+                    <h3 className="text-[16px] font-bold text-foreground">Executive Score Breakdown</h3>
+                    <p className="text-[12px] text-muted-foreground">Calculated across structural ATS rules and target role alignment.</p>
+                  </div>
+                  <span className="rounded-lg bg-emerald-500/10 px-3 py-1 text-[12px] font-semibold text-emerald-600 dark:text-emerald-400">
+                    Analysis Active
+                  </span>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <ScoreRing value={analysis.ats_score} label="ATS Score" sublabel="Keyword & format fit" />
+                  <ScoreRing value={analysis.resume_score} label="Impact Score" sublabel="Action verbs & metrics" />
+                  <ScoreRing value={analysis.career_match} label="Role Match" sublabel="Target alignment" />
+                </div>
+              </div>
+
+              {/* EXECUTIVE SUMMARY */}
+              {analysis.summary && (
+                <div className="card-surface p-6 space-y-3">
+                  <div className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-wider text-terracotta">
+                    <Sparkles className="h-4 w-4" /> Recruiter Executive Summary
+                  </div>
+                  <p className="text-[14px] leading-relaxed text-foreground/90 font-medium">
+                    &quot;{analysis.summary}&quot;
+                  </p>
+                </div>
+              )}
+
+              {/* STRENGTHS & WEAKNESSES GRID */}
+              <div className="grid gap-6 md:grid-cols-2">
+                {/* STRENGTHS */}
+                <div className="card-surface p-6 space-y-4">
+                  <div className="flex items-center gap-2 border-b border-border pb-3">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                    <h4 className="text-[15px] font-bold text-foreground">Competitive Strengths</h4>
+                  </div>
+                  {analysis.strengths.length ? (
+                    <ul className="space-y-3">
+                      {analysis.strengths.map((item, idx) => (
+                        <li key={idx} className="flex items-start gap-2.5 text-[13px] text-muted-foreground leading-relaxed">
+                          <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <EmptyStateMessage title="No strengths detected" description="Upload a detailed resume to extract strengths." />
+                  )}
+                </div>
+
+                {/* WEAKNESSES / RED FLAGS */}
+                <div className="card-surface p-6 space-y-4">
+                  <div className="flex items-center gap-2 border-b border-border pb-3">
+                    <AlertTriangle className="h-5 w-5 text-terracotta" />
+                    <h4 className="text-[15px] font-bold text-foreground">ATS Red Flags & Gaps</h4>
+                  </div>
+                  {analysis.weaknesses.length ? (
+                    <ul className="space-y-3">
+                      {analysis.weaknesses.map((item, idx) => (
+                        <li key={idx} className="flex items-start gap-2.5 text-[13px] text-muted-foreground leading-relaxed">
+                          <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-terracotta" />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <EmptyStateMessage title="No red flags detected" description="Your resume formatting looks strong!" />
+                  )}
+                </div>
+              </div>
+
+              {/* AI REWRITE RECOMMENDATIONS */}
+              <div className="card-surface p-6 space-y-4">
+                <div className="flex items-center justify-between border-b border-border pb-3">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-5 w-5 text-terracotta" />
+                    <h4 className="text-[15px] font-bold text-foreground">High-Impact Positioning Rewrites</h4>
+                  </div>
+                  <span className="text-[11.5px] font-semibold text-muted-foreground">Action Plan</span>
+                </div>
+
+                {analysis.recommendations.length ? (
+                  <div className="space-y-3">
+                    {analysis.recommendations.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-border/80 bg-background/50 p-4"
+                      >
+                        <div className="flex items-start gap-3">
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-terracotta/10 text-[11px] font-extrabold text-terracotta">
+                            {idx + 1}
+                          </span>
+                          <p className="text-[13.5px] font-medium text-foreground">{item.title}</p>
+                        </div>
+                        <span className="inline-flex shrink-0 self-start sm:self-auto rounded-md bg-terracotta/10 px-2.5 py-1 text-[11px] font-bold text-terracotta">
+                          {item.impact}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyStateMessage title="No recommendations available" description="Your resume passed core ATS checks." />
+                )}
+              </div>
+            </div>
+
+            {/* RIGHT COLUMN: SKILL INVENTORY & ROLE MATCHES */}
+            <div className="space-y-6">
+              {/* SKILLS DETECTED */}
+              <div className="card-surface p-6 space-y-4">
+                <div className="flex items-center justify-between border-b border-border pb-3">
+                  <h4 className="text-[15px] font-bold text-foreground">Extracted Technical Skills</h4>
+                  <span className="text-[11.5px] font-bold text-terracotta">
+                    {analysis.detected_skills.length} Detected
+                  </span>
+                </div>
+
+                {analysis.detected_skills.length ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {analysis.detected_skills.map((skill) => (
+                      <span
+                        key={skill}
+                        className="rounded-lg border border-border/80 bg-secondary/70 px-3 py-1.5 text-[12px] font-medium text-foreground shadow-sm"
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyStateMessage title="No skills extracted" description="Upload a text-based resume to extract skills." />
+                )}
+              </div>
+
+              {/* ROLE MATCHES */}
+              <div className="card-surface p-6 space-y-4">
+                <div className="border-b border-border pb-3">
+                  <h4 className="text-[15px] font-bold text-foreground">Market Target Compatibility</h4>
+                  <p className="text-[11.5px] text-muted-foreground mt-0.5">Matched against researched industry roles.</p>
+                </div>
+
+                {analysis.role_matches.length ? (
+                  <div className="space-y-4">
+                    {analysis.role_matches.map((match) => (
+                      <div key={match.role} className="space-y-1.5">
+                        <div className="flex items-center justify-between text-[12.5px]">
+                          <span className="font-semibold text-foreground truncate">{match.role}</span>
+                          <span className="font-bold text-terracotta">{match.match}%</span>
+                        </div>
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${match.match}%` }}
+                            transition={{ duration: 0.8, ease: "easeOut" }}
+                            className="h-full rounded-full bg-terracotta"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyStateMessage title="No role matches available" description="Set your target role on the onboarding page." />
+                )}
+              </div>
+
+              {/* EVIDENCE NOTE CARD */}
+              <div className="rounded-2xl border border-border bg-ink p-6 text-white space-y-3 shadow-lift">
+                <div className="flex items-center gap-2 text-terracotta">
+                  <ShieldCheck className="h-5 w-5" />
+                  <span className="text-[13px] font-bold uppercase tracking-wider">Proof Verification Policy</span>
+                </div>
+                <p className="text-[12.5px] leading-relaxed text-white/75">
+                  Skills extracted from your resume improve your overall evidence picture, but CareerPilot treats them as unverified mentions until backed by GitHub repositories, project code, or verifiable portfolio links.
                 </p>
               </div>
             </div>
           </div>
-
-          {analysis ? (
-            <>
-              <div className="card-surface grid gap-6 p-6 sm:grid-cols-3">
-                <Ring value={analysis.ats_score} label="ATS Score" />
-                <Ring value={analysis.resume_score} label="Resume Score" />
-                <Ring value={analysis.career_match} label="Career Match" />
-              </div>
-              {analysis.summary ? <div className="card-surface p-5"><h3 className="text-[14.5px] font-bold">Analysis Summary</h3><p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">{analysis.summary}</p></div> : null}
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="card-surface p-5"><h3 className="text-[14.5px] font-bold">Strengths</h3>{analysis.strengths.length ? <ul className="mt-4 space-y-3">{analysis.strengths.map((item) => <li key={item} className="flex gap-2.5 text-[12.5px]"><CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />{item}</li>)}</ul> : <Empty>No strengths were returned from the analysis.</Empty>}</div>
-                <div className="card-surface p-5"><h3 className="text-[14.5px] font-bold">Weaknesses</h3>{analysis.weaknesses.length ? <ul className="mt-4 space-y-3">{analysis.weaknesses.map((item) => <li key={item} className="flex gap-2.5 text-[12.5px]"><AlertTriangle className="h-4 w-4 shrink-0 text-terracotta" />{item}</li>)}</ul> : <Empty>No weaknesses were returned from the analysis.</Empty>}</div>
-              </div>
-              <div className="card-surface p-5"><h3 className="text-[14.5px] font-bold">AI Recommendations</h3>{analysis.recommendations.length ? <div className="mt-4 space-y-1">{analysis.recommendations.map((item, index) => <div key={item.title} className={index ? "flex items-center gap-3 border-t border-border py-3.5" : "flex items-center gap-3 py-3.5"}><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-ink text-white"><Sparkles className="h-3.5 w-3.5" /></span><p className="flex-1 text-[13px]">{item.title}</p><span className="rounded-md bg-terracotta/10 px-2 py-1 text-[11px] font-semibold text-terracotta">{item.impact}</span></div>)}</div> : <Empty>No recommendations were returned from the analysis.</Empty>}</div>
-            </>
-          ) : (
-            <div className="card-surface p-6"><h3 className="text-[15px] font-bold">Your analysis will appear here</h3><Empty>CareerPilot will show only results from your uploaded resume. Resume mentions are recorded as supporting evidence, not verified project proof.</Empty></div>
-          )}
-        </div>
-
-        <div className="space-y-4">
-          <div className="card-surface p-5"><h3 className="text-[14.5px] font-bold">Skills Detected</h3>{analysis?.detected_skills.length ? <div className="mt-4 flex flex-wrap gap-2">{analysis.detected_skills.map((skill) => <span key={skill} className="rounded-full border border-border px-3 py-1.5 text-[12px]">{skill}</span>)}</div> : <Empty>Detected skills will appear after a successful analysis.</Empty>}</div>
-          <div className="card-surface p-5"><h3 className="text-[14.5px] font-bold">Career Match</h3>{analysis?.role_matches.length ? <div className="mt-4 space-y-3.5">{analysis.role_matches.map((match) => <div key={match.role} className="flex items-center gap-3"><p className="w-[130px] shrink-0 truncate text-[12.5px]">{match.role}</p><span className="h-1.5 flex-1 overflow-hidden rounded-full bg-secondary"><motion.span initial={{ width: 0 }} animate={{ width: match.match + "%" }} transition={{ duration: 0.7 }} className="block h-full rounded-full bg-terracotta" /></span><span className="w-9 text-right text-[12px] font-semibold">{match.match}%</span></div>)}</div> : <Empty>Role matches are based on your saved target role and resume.</Empty>}</div>
-          <div className="card-surface bg-ink p-5 text-white"><h3 className="text-[14px] font-bold">Evidence note</h3><p className="mt-3 text-[12.5px] leading-relaxed text-white/70">Skills found in a resume improve the evidence picture, but CareerPilot still treats them as mentions until supported by a project, repository, or other proof.</p></div>
-        </div>
+        ) : (
+          <div className="card-surface p-12 text-center space-y-4">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-terracotta/10 text-terracotta">
+              <FileCode2 className="h-7 w-7" />
+            </div>
+            <h3 className="text-lg font-bold text-foreground">No Resume Analyzed Yet</h3>
+            <p className="text-[13.5px] text-muted-foreground max-w-md mx-auto leading-relaxed">
+              Upload your PDF, DOCX, or TXT resume using the dropzone above to generate your ATS Compatibility Score, skill extraction breakdown, and recruiter position rewrites.
+            </p>
+          </div>
+        )}
       </div>
     </AppLayout>
   );

@@ -9,27 +9,33 @@ export const MENTOR_HISTORY_LIMIT = 20;
 
 /** Builds a compact, factual snapshot of the user's career data for the model. */
 export async function buildCareerContext(supabase: Client, userId: string): Promise<string> {
-  const [profileRes, goalRes, skillsRes, analysisRes, stagesRes, appsRes] = await Promise.all([
-    supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle(),
-    supabase.from("career_goals").select("*").eq("user_id", userId).maybeSingle(),
-    supabase
-      .from("user_skills")
-      .select("proficiency, skills(name, category)")
-      .eq("user_id", userId),
-    supabase
-      .from("resume_analyses")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    supabase
-      .from("roadmap_stages")
-      .select("title, timeframe, completed, skills")
-      .eq("user_id", userId)
-      .order("position"),
-    supabase.from("applications").select("company, role_title, status").eq("user_id", userId),
-  ]);
+  const [profileRes, goalRes, skillsRes, analysisRes, stagesRes, appsRes, projectsRes] =
+    await Promise.all([
+      supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle(),
+      supabase.from("career_goals").select("*").eq("user_id", userId).maybeSingle(),
+      supabase
+        .from("user_skills")
+        .select("proficiency, skills(name, category)")
+        .eq("user_id", userId),
+      supabase
+        .from("resume_analyses")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("roadmap_stages")
+        .select("title, timeframe, completed, skills")
+        .eq("user_id", userId)
+        .order("position"),
+      supabase.from("applications").select("company, role_title, status").eq("user_id", userId),
+      supabase
+        .from("user_projects")
+        .select("name, description, technologies, project_url, project_type")
+        .eq("user_id", userId)
+        .order("position"),
+    ]);
 
   const profile = profileRes.data;
   const goal = goalRes.data;
@@ -85,17 +91,39 @@ export async function buildCareerContext(supabase: Client, userId: string): Prom
     );
   }
 
+  const projects = projectsRes.data ?? [];
+  if (projects.length) {
+    lines.push(
+      `Projects (${projects.length}): ${projects
+        .map((p) => {
+          const techs = Array.isArray(p.technologies)
+            ? (p.technologies as string[]).slice(0, 5).join(", ")
+            : "";
+          return `${p.name as string}${techs ? ` [${techs}]` : ""}${p.project_url ? ` (${p.project_url})` : ""}`;
+        })
+        .join("; ")}`,
+    );
+  } else {
+    lines.push("No projects recorded yet.");
+  }
+
   return lines.join("\n");
 }
 
-const SYSTEM_PROMPT = `You are CareerPilot's AI career mentor: a sharp, senior career coach for students and early-career professionals.
+const SYSTEM_PROMPT = `You are CareerPilot's AI career mentor: a sharp, brutally honest career coach for students and early-career professionals. You do not sugar-coat. You do not comfort. You tell students what they need to hear, not what they want to hear.
+
+CORE PRINCIPLE: Honesty builds trust. Sugar-coating breeds complacency. Your job is to wake students up.
 
 Rules:
-- Ground every answer in the user's actual profile data provided below. Never invent scores, employers or achievements that aren't listed.
-- If a fact isn't in the profile, say what's missing and how to add it (e.g. upload a resume, set a goal).
-- Be concrete and actionable: name specific skills, projects, resources and next steps.
+- Ground every answer in the user's actual profile data. Never invent scores, employers, or achievements not listed.
+- If a fact isn't in the profile, name what's missing directly: "Your profile has no resume" — NOT "You might consider uploading a resume."
+- Use direct language: "You are missing X" / "Your profile shows zero evidence of X" / "This is not enough because…"
+- NEVER say "You might want to…" or "It could help to…" or "Consider…" — say "Do X" / "You need X" / "Build X."
+- Challenge unrealistic expectations. If a student expects a senior role with junior skills, say so: "You are not ready for that role yet. Here's why…"
+- If their skills don't match market demand, state it explicitly: "The market wants X. You have Y. That gap is why you're not getting interviews."
+- Be concrete and actionable: name specific skills, projects, resources, and deadlines.
 - Keep replies under 180 words, plain text, no markdown headings. Short paragraphs or dashes only.
-- Warm, direct and practical — never generic filler.`;
+- Direct, urgent, and practical — never generic filler, never soft encouragement.`;
 
 export async function runMentorTurn(
   supabase: Client,
@@ -104,7 +132,8 @@ export async function runMentorTurn(
 ): Promise<{ reply: string }> {
   const trimmed = message.trim();
   if (!trimmed) throw new Error("Please type a message first.");
-  if (trimmed.length > 2000) throw new Error("That message is too long — keep it under 2000 characters.");
+  if (trimmed.length > 2000)
+    throw new Error("That message is too long — keep it under 2000 characters.");
 
   const [context, historyRes] = await Promise.all([
     buildCareerContext(supabase, userId),
@@ -120,12 +149,22 @@ export async function runMentorTurn(
   const history = (historyRes.data ?? []).slice().reverse();
 
   const messages: ChatMsg[] = [
-    { role: "system", content: `${SYSTEM_PROMPT}\n\n=== USER CAREER PROFILE ===\n${context}` },
+    { role: "system", content: `${SYSTEM_PROMPT}\n\n<user_profile>\n${context}\n</user_profile>` },
     ...history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
-    { role: "user", content: trimmed },
+    { role: "user", content: `<user_message>\n${trimmed}\n</user_message>` },
   ];
 
-  const reply = await groqChat(messages, { maxTokens: 700, temperature: 0.65 });
+  let reply: string;
+  try {
+    reply = await groqChat(messages, { maxTokens: 700, temperature: 0.65 });
+  } catch (err) {
+    // AI service unavailable — provide a deterministic fallback so mentor
+    // remains usable during local development.
+
+    console.error("groqChat error in runMentorTurn:", err);
+    const ctxSnippet = context.split("\n").slice(0, 6).join(" — ");
+    reply = `AI temporarily unavailable. Based on your profile: ${ctxSnippet}. Immediate next step: set a clear target role and add one project demonstrating a key skill.`;
+  }
 
   const { error } = await supabase.from("chat_messages").insert([
     { user_id: userId, role: "user", content: trimmed },

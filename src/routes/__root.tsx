@@ -81,7 +81,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "CareerPilot AI" },
       { name: "description", content: "AI career workspace: mentor, resume analysis and roadmap." },
       { property: "og:title", content: "CareerPilot AI" },
-      { property: "og:description", content: "AI career workspace: mentor, resume analysis and roadmap." },
+      {
+        property: "og:description",
+        content: "AI career workspace: mentor, resume analysis and roadmap.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],

@@ -1,456 +1,203 @@
 # CareerPilot AI
 
-Build CareerPilot AI as a premium, production-quality SaaS product.
+CareerPilot AI is a career intelligence workspace for students and early-career developers.
+It turns a student's real evidence, including profile data, skills, projects, resumes, and
+repositories, into an honest readiness picture and a practical next step.
 
-IMPORTANT:
+The product is designed around one simple question:
 
-The uploaded screenshot is the PRIMARY DESIGN REFERENCE.
+> What should I prove next to become ready for the role I want?
 
-Recreate the screenshot closely. It is NOT inspiration for a new dashboard.
+## Why CareerPilot
 
-DO NOT:
+Most career tools give generic advice. CareerPilot connects a student's actual evidence to
+market expectations and makes the gaps actionable.
 
-- create a generic admin dashboard
+- Diagnose the current career position.
+- Analyze a resume with ATS and career-fit signals.
+- Mirror skills against researched role expectations.
+- Assess readiness for a specific job description.
+- Inspect public GitLab proof when available.
+- Build a practical learning roadmap.
+- Ask an AI mentor focused questions.
+- Review market reality, future technology signals, and employer expectations.
 
-- redesign the layout
+## Core Experience
 
-- rearrange sections
+### Career Diagnosis
 
-- add unnecessary components
+Collects structured information about education, experience, projects, skills, blockers, and
+career goals. The result becomes the shared evidence base for the rest of the application.
 
-- add random gradients
+### Resume Intelligence
 
-- add excessive glassmorphism
+Accepts a resume upload, extracts its content, and produces ATS, structure, strengths,
+weaknesses, detected-skill, and career-match signals. The system is designed to fail safely
+with a useful fallback when an AI provider is unavailable.
 
-- create a university-project look
+### Flight Plan
 
-- invent extra pages or features
+Compares a target role and job description against the student's recorded evidence. It combines
+role expectations, skill coverage, resume evidence, optional GitLab inspection, and current
+market context into a job-readiness assessment.
 
-The goal is:
+### Job Mirror and Recruiter Audit
 
-REFERENCE SCREENSHOT → REAL FUNCTIONAL WEBSITE
+The Job Mirror shows what employers expect for researched roles and distinguishes claimed skills
+from demonstrated proof. Recruiter Audit presents a company-specific screening perspective and
+persists the session and recruiter conversation securely per user.
 
-The implementation should feel like the same product shown in the screenshot.
+### Roadmap and Mentor
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Turns identified gaps into focused learning work. The mentor provides contextual guidance using
+the same career state instead of treating every student as a blank slate.
 
-DESIGN
+## Technology
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- TanStack Start and TanStack Router
+- React 19 and TypeScript
+- Vite and Nitro
+- Supabase Auth, Postgres, Storage, and Row Level Security
+- Groq, Gemini, or OpenRouter for AI inference
+- Tavily for live web research
+- Tailwind CSS and Radix UI primitives
+- TanStack Query for client data fetching and caching
+- Motion for purposeful interface transitions
 
-Use the screenshot as the source of truth for:
+## Project Structure
 
-- layout
+```text
+src/
+  components/                 Reusable UI and product sections
+  data/                       Client queries, mutations, and domain types
+  integrations/supabase/      Browser/server clients and generated database types
+  lib/                        Server functions and domain logic
+  routes/                     TanStack Start routes
+supabase/
+  migrations/                 Versioned database schema and RLS policies
+public/                       Public static assets
+```
 
-- proportions
+Server-only modules use `.server.ts` and keep privileged credentials away from browser code.
 
-- spacing
+## Local Setup
 
-- typography
+### Requirements
 
-- card sizes
+- Node.js 20 or newer
+- npm
+- A Supabase project
+- At least one supported AI provider key
+- A Tavily API key for live market research features
 
-- sidebar
+### Install
 
-- hero
+```bash
+npm install
+```
 
-- colors
+### Configure Environment
 
-- icons
+Copy the safe template:
 
-- charts
+```bash
+copy .env.example .env
+```
 
-- buttons
+Then fill in the values locally. Never commit `.env` or paste real keys into GitHub.
 
-- visual hierarchy
+Required Supabase variables:
 
-- whitespace
+```env
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_PUBLISHABLE_KEY=your_publishable_key
+SUPABASE_SERVICE_ROLE_KEY=your_server_only_service_role_key
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=your_publishable_key
+```
 
-- image placement
+AI and research variables:
 
-Style:
+```env
+AI_PROVIDER=groq
+GROQ_API_KEY=your_groq_key
+GEMINI_API_KEY=your_gemini_key
+OPENROUTER_API_KEY=your_openrouter_key
+TAVILY_API_KEY=your_tavily_key
+```
 
-premium, minimal, editorial, elegant, luxurious, modern SaaS.
+Only the publishable Supabase key belongs in client configuration. Service-role, AI, and Tavily
+keys must remain server-side deployment secrets.
 
-Visual quality should feel comparable to Linear, Vercel, Framer, Stripe and Apple, but DO NOT copy their layouts.
+### Apply Database Migrations
 
-Colors:
+Run the SQL migrations in `supabase/migrations` against the connected Supabase project. The
+latest recruiter migration is:
 
-Background: #FAF9F7
+```text
+supabase/migrations/20260904000000_add_recruiter_sessions.sql
+```
 
-Cards: #FFFFFF
+This migration creates the recruiter session schema, user-scoped RLS policies, an index, and
+the updated-at trigger. Verify that the migration has been applied before testing Recruiter
+Audit and recruiter chat.
 
-Text: #121212
+### Start Development
 
-Primary accent: #A55233
-
-Secondary accent: #C9754F
-
-Borders: rgba(0,0,0,0.06)
-
-Use Plus Jakarta Sans / Inter.
-
-Use subtle shadows, borders and rounded corners.
-
-No excessive effects.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-HERO — IMPORTANT
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-The large hero must closely match the reference screenshot.
-
-Keep:
-
-BUILD
-
-YOUR
-
-FUTURE
-
-large editorial typography, dark background, terracotta circle and the standing/walking person.
-
-The person is a REPLACEABLE USER ASSET.
-
-Implement:
-
-<CareerHero personImage={user.heroImage} />
-
-The person can change per user, but:
-
-- hero layout stays the same
-
-- typography stays the same
-
-- circle stays the same
-
-- positioning stays the same
-
-- proportions stay the same
-
-Do NOT replace the person with a generic illustration or stock-photo card.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-DYNAMIC USER
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Never hard-code "Ali".
-
-Use:
-
-Good Morning, {user.firstName}
-
-The user's:
-
-- name
-
-- avatar
-
-- role
-
-- hero image
-
-- scores
-
-- skills
-
-- applications
-
-must come from user data.
-
-Design is fixed.
-
-Data is dynamic.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-PAGES — ONLY 5
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Keep the product focused. Build only these pages:
-
-1. LANDING PAGE
-
-2. DASHBOARD
-
-3. AI CAREER MENTOR
-
-4. RESUME + CAREER ANALYSIS
-
-5. ROADMAP
-
-Do NOT create additional pages unless technically required.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-1. LANDING PAGE
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Premium editorial landing page using the SAME CareerPilot visual identity.
-
-Include only:
-
-Hero
-
-How It Works
-
-Career Intelligence / Features
-
-Career Score preview
-
-Testimonials
-
-Pricing
-
-Footer
-
-Keep it elegant and spacious.
-
-Do not make it a long generic SaaS landing page.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-2. DASHBOARD
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-This is the PRIMARY page.
-
-Match the uploaded screenshot.
-
-Include:
-
-Dark sidebar
-
-Header / greeting
-
-Search
-
-Notifications
-
-Career Score
-
-Resume Score
-
-Interview Score
-
-Skills Matched
-
-Today's Plan
-
-Large editorial hero
-
-AI Mentor panel
-
-AI Resume Review
-
-Quick Actions
-
-Recommended Roadmap
-
-Recent Applications
-
-Top Skills
-
-Bottom motivation section
-
-Preserve the screenshot's composition and visual hierarchy.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-3. AI CAREER MENTOR
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-A focused, premium AI career conversation page.
-
-Use the same sidebar/header/design system.
-
-Include:
-
-AI conversation
-
-Suggested career questions
-
-Career insights
-
-Chat input
-
-Recommended actions
-
-Do not make it look like a generic ChatGPT clone.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-4. RESUME + CAREER ANALYSIS
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-One unified page.
-
-Include:
-
-Resume upload
-
-ATS score
-
-Resume score
-
-Strengths
-
-Weaknesses
-
-AI recommendations
-
-Skills detected
-
-Career match
-
-Improvement suggestions
-
-Use the same visual language as the dashboard.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-5. ROADMAP
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Premium visual career roadmap.
-
-Include:
-
-Current career goal
-
-Progress
-
-Learning stages
-
-Skills
-
-Projects
-
-Recommended courses
-
-Milestones
-
-Next action
-
-Use a clean editorial timeline rather than a generic admin table.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-TECH
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Use:
-
-Next.js App Router
-
-React
-
-TypeScript
-
-Tailwind CSS
-
-shadcn/ui
-
-Lucide icons
-
-Framer Motion
-
-React Query
-
-Use reusable components.
-
-Keep the code clean and production-ready.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-ANIMATION
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Use subtle Framer Motion animations:
-
-- fade/slide entrance
-
-- card hover
-
-- button lift
-
-- smooth transitions
-
-- elegant loading skeletons
-
-No excessive animation.
-
-Use smooth scrolling if appropriate.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-RESPONSIVE
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Desktop is the primary reference.
-
-Create polished tablet and mobile layouts without destroying the visual hierarchy.
-
-Do not simply shrink the desktop layout.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-FINAL RULE
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-The uploaded screenshot is the design specification.
-
-DO NOT interpret it.
-
-DO NOT redesign it.
-
-DO NOT make a generic dashboard.
-
-RECREATE IT as a real, functional, responsive product.
-
-Keep the website focused to exactly 5 core pages.
-
-Prioritize visual accuracy, spacing, typography, composition and polish over adding features.
-
-QUALITY > QUANTITY.
-
-SIMPLICITY > COMPLEXITY.
-
-REFERENCE > AI CREATIVITY.
-
-This project was built with [Lovable](https://lovable.dev).
-
-**Live app**: https://careerpilot-studio.lovable.app
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/69010e82-dc29-4cbf-bf1f-855bcac5365d).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
+```bash
 npm run dev
 ```
+
+The development server runs on the Vite port shown in the terminal.
+
+## Verification
+
+Run the production checks before a release:
+
+```bash
+npx tsc --noEmit
+npm run build
+npm run preview
+```
+
+Recommended smoke-test flow:
+
+1. Create an account and complete onboarding.
+2. Confirm profile data and skills survive a refresh.
+3. Upload a resume and review the analysis.
+4. Open Flight Plan and assess a real job description.
+5. Run Recruiter Audit, refresh, and send a chat message.
+6. Generate or open a roadmap and verify the next action.
+7. Open Mentor, Market Reality, and Future Tech.
+
+## Security Notes
+
+- `.env`, `.env.local`, and other local secret files are ignored by Git.
+- `.env.example` contains placeholders only.
+- Supabase tables use user-scoped Row Level Security policies.
+- Resume files use user-scoped storage paths and policies.
+- Server-only credentials are read from `process.env` inside server modules.
+- User-provided job descriptions, self-descriptions, and repository URLs are length-limited and
+  validated before server processing.
+
+## Deployment
+
+1. Add the repository to GitHub without staging `.env` or generated output directories.
+2. Configure the same environment variables in the deployment provider's secret settings.
+3. Apply all Supabase migrations to the production project.
+4. Run `npm run build`.
+5. Deploy the generated TanStack Start/Nitro application using the provider configuration.
+6. Test authentication and one complete user journey on the deployed URL.
+
+For Lovable-connected branches, avoid force-pushing or rewriting published history. Keep each
+push deployable so the connected project remains recoverable.
+
+## Product Principle
+
+CareerPilot does not promise a job or invent evidence. It makes the student's current proof,
+market expectations, and highest-value next action visible.
+
+## License
+
+This project is currently maintained as a hackathon and product prototype. Add a license before
+distributing it as an open-source project.

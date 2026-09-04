@@ -29,6 +29,15 @@ export type StateGap = {
   proofTask: string | null;
 };
 
+export type StateProject = {
+  name: string;
+  description: string | null;
+  technologies: string[];
+  projectUrl: string | null;
+  projectType: string;
+  completed: boolean;
+};
+
 export type CareerState = {
   userId: string;
   profile: {
@@ -50,6 +59,7 @@ export type CareerState = {
   } | null;
   skills: StateSkill[];
   evidenceCount: number;
+  projects: StateProject[];
   resume: {
     hasResume: boolean;
     atsScore: number | null;
@@ -96,6 +106,7 @@ export async function buildCareerState(supabase: Client, userId: string): Promis
     goalsRes,
     appsRes,
     readinessRes,
+    projectsRes,
   ] = await Promise.all([
     supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle(),
     supabase.from("career_goals").select("*").eq("user_id", userId).maybeSingle(),
@@ -136,6 +147,11 @@ export async function buildCareerState(supabase: Client, userId: string): Promis
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from("user_projects")
+      .select("name, description, technologies, project_url, project_type, completed")
+      .eq("user_id", userId)
+      .order("position"),
   ]);
 
   const profile = profileRes.data;
@@ -200,6 +216,14 @@ export async function buildCareerState(supabase: Client, userId: string): Promis
       : null,
     skills,
     evidenceCount: evidenceRows.filter((e) => (e.strength ?? 0) > 0).length,
+    projects: (projectsRes.data ?? []).map((row) => ({
+      name: (row.name as string) ?? "",
+      description: (row.description as string | null) ?? null,
+      technologies: Array.isArray(row.technologies) ? (row.technologies as string[]) : [],
+      projectUrl: (row.project_url as string | null) ?? null,
+      projectType: (row.project_type as string) ?? "personal",
+      completed: (row.completed as boolean) ?? false,
+    })),
     resume: {
       hasResume: Boolean(analysis),
       atsScore: analysis?.ats_score ?? null,
@@ -254,11 +278,7 @@ export function careerStateToPrompt(state: CareerState): string {
   const name = [state.profile.firstName, state.profile.lastName].filter(Boolean).join(" ");
   if (name) lines.push(`Name: ${name}`);
   if (state.profile.currentRole) lines.push(`Current role: ${state.profile.currentRole}`);
-  const education = [
-    state.profile.degree,
-    state.profile.university,
-    state.profile.graduationYear,
-  ]
+  const education = [state.profile.degree, state.profile.university, state.profile.graduationYear]
     .filter(Boolean)
     .join(", ");
   if (education) lines.push(`Education: ${education}`);
@@ -275,7 +295,10 @@ export function careerStateToPrompt(state: CareerState): string {
   lines.push(
     state.skills.length
       ? `Skills (evidence 0=claim only, 3=strong): ${state.skills
-          .map((s) => `${s.name} ${s.proficiency}% [evidence ${s.evidenceStrength}: ${s.sources.join("/")}]`)
+          .map(
+            (s) =>
+              `${s.name} ${s.proficiency}% [evidence ${s.evidenceStrength}: ${s.sources.join("/")}]`,
+          )
           .join("; ")}`
       : "Skills: none recorded yet",
   );
@@ -288,6 +311,19 @@ export function careerStateToPrompt(state: CareerState): string {
       lines.push(`Resume gaps: ${state.resume.weaknesses.slice(0, 5).join("; ")}`);
   } else {
     lines.push("No resume has been analysed yet.");
+  }
+
+  if (state.projects.length) {
+    lines.push(
+      `Projects (${state.projects.length}): ${state.projects
+        .map(
+          (p) =>
+            `${p.name}${p.technologies.length ? ` [${p.technologies.slice(0, 6).join(", ")}]` : ""}${p.projectUrl ? ` (${p.projectUrl})` : ""}`,
+        )
+        .join("; ")}`,
+    );
+  } else {
+    lines.push("No projects recorded yet.");
   }
 
   if (state.gaps.length) {

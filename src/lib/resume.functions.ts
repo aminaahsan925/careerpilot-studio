@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { analyzeStoredResume } from "./resume.server";
 
 export const analyzeResume = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -10,6 +11,5 @@ export const analyzeResume = createServerFn({ method: "POST" })
     return { resumeId };
   })
   .handler(async ({ data, context }) => {
-    const { analyzeStoredResume } = await import("./resume.server");
     return analyzeStoredResume(context.supabase, context.userId, data.resumeId);
   });

@@ -1,16 +1,29 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { matchCompanyTruth } from "@/data/company-truth";
 import type { Database } from "@/integrations/supabase/types";
 import { clampScore, groqChat, parseJsonObject, stringList } from "./ai.server";
 import { syncResumeEvidence } from "./career.server";
-import { buildCareerState } from "./career-state.server";
+import { buildCareerState, careerStateToPrompt } from "./career-state.server";
 import { buildCareerContext } from "./mentor.server";
 import { saveReadiness } from "./readiness.server";
 
 type Client = SupabaseClient<Database>;
 
+/* ------------------------------------------------------------------ *
+ * Text extraction
+ * ------------------------------------------------------------------ */
+
 function stripXml(xml: string): string {
-  return xml.replace(/<\/w:p>/g, "\n").replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+  return xml
+    .replace(/<\/w:p>/g, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 export async function extractResumeText(bytes: Uint8Array, fileName: string): Promise<string> {
@@ -32,63 +45,702 @@ export async function extractResumeText(bytes: Uint8Array, fileName: string): Pr
   throw new Error("Unsupported file type. Upload a PDF, DOCX or TXT resume.");
 }
 
-export type AnalysisResult = {
-  ats_score: number; resume_score: number; career_match: number; summary: string;
-  strengths: string[]; weaknesses: string[]; detected_skills: string[];
-  recommendations: { title: string; impact: string }[];
-  role_matches: { role: string; match: number }[];
+/* ------------------------------------------------------------------ *
+ * Shared shapes
+ * ------------------------------------------------------------------ */
+
+/** A single deterministic ATS formatting check. */
+export type FormatCheck = {
+  label: string;
+  status: "pass" | "warn" | "fail";
+  detail: string;
 };
 
-const SYSTEM = `You are an expert technical recruiter and ATS auditor. Grade resumes strictly and honestly.
-Return ONLY JSON with: ats_score, resume_score, career_match (numbers 0-100), summary (max 220 chars), strengths (3-5), weaknesses (3-5), detected_skills (up to 14 concrete skills), recommendations ([{title, impact}]), and role_matches ([{role, match}]). Base career_match on fit with the stated target role. Never invent experience.`;
+/** A concrete before/after line rewrite the student can copy straight in. */
+export type SectionRewrite = { section: string; before: string; after: string };
 
-export async function analyzeResumeText(supabase: Client, userId: string, resumeText: string): Promise<AnalysisResult> {
-  const context = await buildCareerContext(supabase, userId);
-  const raw = await groqChat(
-    [{ role: "system", content: SYSTEM }, { role: "user", content: `=== CANDIDATE PROFILE ===\n${context}\n\n=== RESUME TEXT ===\n${resumeText.slice(0, 18000)}` }],
-    { json: true, maxTokens: 1600, temperature: 0.3 },
-  );
-  const parsed = parseJsonObject<Record<string, unknown>>(raw);
-  const recommendations = Array.isArray(parsed["recommendations"])
-    ? (parsed["recommendations"] as Record<string, unknown>[]).map((r) => ({
-        title: String(r?.["title"] ?? "").trim(),
-        impact: String(r?.["impact"] ?? "").trim() || "High impact",
-      })).filter((r) => r.title).slice(0, 5)
-    : [];
-  const roleMatches = Array.isArray(parsed["role_matches"])
-    ? (parsed["role_matches"] as Record<string, unknown>[]).map((r) => ({
-        role: String(r?.["role"] ?? "").trim(), match: clampScore(r?.["match"]),
-      })).filter((r) => r.role).slice(0, 5)
-    : [];
-  return {
-    ats_score: clampScore(parsed["ats_score"]), resume_score: clampScore(parsed["resume_score"]),
-    career_match: clampScore(parsed["career_match"]), summary: String(parsed["summary"] ?? "").slice(0, 400),
-    strengths: stringList(parsed["strengths"], 6), weaknesses: stringList(parsed["weaknesses"], 6),
-    detected_skills: stringList(parsed["detected_skills"], 14), recommendations, role_matches: roleMatches,
-  };
+/** What the CV is being graded against. Empty description = general grade. */
+export type ResumeTarget = {
+  company: string | null;
+  role: string | null;
+  jobDescription: string | null;
+};
+
+export type AnalysisResult = {
+  scope: "general" | "job";
+  target_company: string | null;
+  target_role: string | null;
+  job_description: string | null;
+  ats_score: number;
+  resume_score: number;
+  career_match: number;
+  verdict: string;
+  summary: string;
+  strengths: string[];
+  weaknesses: string[];
+  detected_skills: string[];
+  recommendations: { title: string; impact: string }[];
+  role_matches: { role: string; match: number }[];
+  keyword_hits: string[];
+  missing_keywords: string[];
+  format_audit: FormatCheck[];
+  section_rewrites: SectionRewrite[];
+};
+
+export const EMPTY_TARGET: ResumeTarget = { company: null, role: null, jobDescription: null };
+
+/* ------------------------------------------------------------------ *
+ * Deterministic ATS formatting audit
+ *
+ * These checks never depend on the AI, so the student always gets an
+ * honest, reproducible formatting verdict even when a free-tier model
+ * is rate limited.
+ * ------------------------------------------------------------------ */
+
+const ACTION_VERBS = [
+  "built",
+  "designed",
+  "developed",
+  "implemented",
+  "shipped",
+  "launched",
+  "led",
+  "optimized",
+  "reduced",
+  "increased",
+  "automated",
+  "migrated",
+  "refactored",
+  "architected",
+  "integrated",
+  "deployed",
+  "improved",
+  "delivered",
+  "scaled",
+  "engineered",
+  "created",
+  "resolved",
+  "tested",
+  "benchmarked",
+];
+
+const FILLER_PHRASES = [
+  "responsible for",
+  "worked on",
+  "duties included",
+  "team player",
+  "hard worker",
+  "hard working",
+  "passionate about",
+  "quick learner",
+  "good communication skills",
+  "familiar with",
+  "helped with",
+  "involved in",
+];
+
+/** Details recruiters outside your CV's job market treat as noise or bias risk. */
+const PRIVATE_DETAILS = [
+  "marital status",
+  "date of birth",
+  "father's name",
+  "fathers name",
+  "religion",
+  "cnic",
+  "nationality",
+  "gender",
+  "age:",
+];
+
+const REQUIRED_SECTIONS: { label: string; patterns: RegExp }[] = [
+  { label: "Education", patterns: /\beducation|academic|university|degree\b/i },
+  { label: "Experience", patterns: /\bexperience|employment|internship|work history\b/i },
+  { label: "Skills", patterns: /\b(technical )?skills|technologies|tech stack\b/i },
+  { label: "Projects", patterns: /\bprojects?\b/i },
+];
+
+function check(label: string, status: FormatCheck["status"], detail: string): FormatCheck {
+  return { label, status, detail };
 }
 
-export async function analyzeStoredResume(supabase: Client, userId: string, resumeId: string) {
-  const { data: resume, error } = await supabase.from("resumes").select("*").eq("id", resumeId).eq("user_id", userId).maybeSingle();
-  if (error) throw error;
-  if (!resume) throw new Error("That resume couldn't be found.");
+/**
+ * Grades the mechanical, parser-facing qualities of the CV text.
+ * Returns the checks plus a 0-100 formatting score derived from them.
+ */
+export function auditResumeFormat(
+  text: string,
+  fileName: string,
+): { checks: FormatCheck[]; formatScore: number } {
+  const lower = text.toLowerCase();
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const words = text.split(/\s+/).filter(Boolean).length;
+  const checks: FormatCheck[] = [];
 
-  let text = resume.content_text ?? "";
-  if (!text) {
-    const download = await supabase.storage.from("resumes").download(resume.file_path);
-    if (download.error || !download.data) throw new Error("Couldn't read the uploaded file. Please upload it again.");
-    text = await extractResumeText(new Uint8Array(await download.data.arrayBuffer()), resume.file_name);
-    if (text.replace(/\s/g, "").length < 120) throw new Error("We couldn't extract enough text from that file. If it's a scanned image, upload a text-based PDF instead.");
-    const { error: updateError } = await supabase.from("resumes").update({ content_text: text }).eq("id", resume.id);
-    if (updateError) throw updateError;
+  // 1. Contact essentials — an ATS that cannot find a contact record drops the row.
+  const hasEmail = /[\w.+-]+@[\w-]+\.[\w.]{2,}/.test(text);
+  const hasPhone = /(\+?\d[\d\s().-]{7,}\d)/.test(text);
+  checks.push(
+    hasEmail && hasPhone
+      ? check("Contact details", "pass", "Email and phone number were both parsed correctly.")
+      : check(
+          "Contact details",
+          "fail",
+          `Missing ${!hasEmail ? "email" : "phone number"}. Put both on the first line as plain text — never inside a header, footer, or image.`,
+        ),
+  );
+
+  // 2. Proof links — recruiters click before they read.
+  const hasGithub = /github\.com\//i.test(text);
+  const hasLinkedin = /linkedin\.com\//i.test(text);
+  const hasAnyLink = /https?:\/\/|www\./i.test(text);
+  checks.push(
+    hasGithub && hasLinkedin
+      ? check("Proof links", "pass", "GitHub and LinkedIn URLs are both present.")
+      : check(
+          "Proof links",
+          hasAnyLink ? "warn" : "fail",
+          `Add a full ${!hasGithub ? "GitHub" : "LinkedIn"} URL as visible text (github.com/yourname), not a clickable word like "portfolio".`,
+        ),
+  );
+
+  // 3. Length — one page for students, two only with real experience.
+  checks.push(
+    words >= 320 && words <= 900
+      ? check("Length", "pass", `${words} words — the right density for a one-page CV.`)
+      : check(
+          "Length",
+          words < 200 || words > 1200 ? "fail" : "warn",
+          words < 320
+            ? `Only ${words} words. Too thin to score — expand each project into 2-3 outcome bullets.`
+            : `${words} words. Cut to one page by removing coursework, hobbies, and duty-style lines.`,
+        ),
+  );
+
+  // 4. Quantified impact — the single biggest differentiator on a junior CV.
+  const numericLines = lines.filter((l) => /\d+\s?(%|x|k\b|ms\b|s\b|users|requests|rows)/i.test(l));
+  checks.push(
+    numericLines.length >= 3
+      ? check(
+          "Quantified impact",
+          "pass",
+          `${numericLines.length} bullets carry real numbers. This is what separates you from duty-list CVs.`,
+        )
+      : check(
+          "Quantified impact",
+          numericLines.length ? "warn" : "fail",
+          `Only ${numericLines.length} measurable bullet${numericLines.length === 1 ? "" : "s"}. Every project needs a number: latency, users, rows, test coverage, or % improvement.`,
+        ),
+  );
+
+  // 5. Action verbs at the start of bullets.
+  const verbLines = lines.filter((l) =>
+    ACTION_VERBS.some((v) => new RegExp(`^[•\\-*\\s]*${v}\\b`, "i").test(l)),
+  );
+  checks.push(
+    verbLines.length >= 4
+      ? check("Action verbs", "pass", `${verbLines.length} bullets open with a strong action verb.`)
+      : check(
+          "Action verbs",
+          verbLines.length ? "warn" : "fail",
+          "Start every bullet with a past-tense action verb (Built, Reduced, Automated, Migrated) instead of a noun or pronoun.",
+        ),
+  );
+
+  // 6. Filler phrases that signal a copied template.
+  const foundFillers = FILLER_PHRASES.filter((p) => lower.includes(p));
+  checks.push(
+    foundFillers.length === 0
+      ? check("Filler phrases", "pass", "No empty template phrases detected.")
+      : check(
+          "Filler phrases",
+          foundFillers.length > 2 ? "fail" : "warn",
+          `Remove: "${foundFillers.slice(0, 4).join('", "')}". These say nothing a recruiter can verify.`,
+        ),
+  );
+
+  // 7. Standard section headings the parser looks for by name.
+  const missingSections = REQUIRED_SECTIONS.filter((s) => !s.patterns.test(text)).map(
+    (s) => s.label,
+  );
+  checks.push(
+    missingSections.length === 0
+      ? check("Standard sections", "pass", "Education, Experience, Skills and Projects were found.")
+      : check(
+          "Standard sections",
+          missingSections.length > 1 ? "fail" : "warn",
+          `Missing headings: ${missingSections.join(", ")}. Use these exact plain words — ATS parsers match on them literally.`,
+        ),
+  );
+
+  // 8. Bullet structure — walls of prose do not get read.
+  const bulletLines = lines.filter((l) => /^[•▪◦‣·*\-–]/.test(l));
+  checks.push(
+    bulletLines.length >= 6
+      ? check("Bullet structure", "pass", `${bulletLines.length} bullet lines — easy to skim.`)
+      : check(
+          "Bullet structure",
+          "warn",
+          "Break paragraphs into single-line bullets. Recruiters skim for 7 seconds before deciding.",
+        ),
+  );
+
+  // 9. Machine-readable text layer — scanned or image-based CVs score zero.
+  checks.push(
+    text.replace(/\s/g, "").length >= 900
+      ? check("Text layer", "pass", "The file exposes a clean, selectable text layer.")
+      : check(
+          "Text layer",
+          "fail",
+          "Very little machine-readable text. If this is a scan or a design export, re-export a text-based PDF from Word or Google Docs.",
+        ),
+  );
+
+  // 10. Multi-column / table layout risk. Wide internal whitespace runs are the
+  // signature of a two-column template collapsing during extraction.
+  const columnishLines = lines.filter((l) => /\S {4,}\S/.test(l));
+  const columnRatio = lines.length ? columnishLines.length / lines.length : 0;
+  checks.push(
+    columnRatio < 0.2
+      ? check("Single-column layout", "pass", "Reads as a single column — parses cleanly.")
+      : check(
+          "Single-column layout",
+          columnRatio > 0.4 ? "fail" : "warn",
+          "Looks like a two-column or table-based template. ATS parsers read left-to-right and scramble columns — switch to one column.",
+        ),
+  );
+
+  // 11. First-person pronouns.
+  checks.push(
+    !/\b(I|my|me)\b/.test(text)
+      ? check("Professional voice", "pass", "No first-person pronouns.")
+      : check(
+          "Professional voice",
+          "warn",
+          'Drop "I", "my" and "me". CV bullets are written in implied first person.',
+        ),
+  );
+
+  // 12. Private details that only add bias risk.
+  const foundPrivate = PRIVATE_DETAILS.filter((p) => lower.includes(p));
+  checks.push(
+    foundPrivate.length === 0
+      ? check("No bias-risk details", "pass", "No date of birth, marital status, or ID numbers.")
+      : check(
+          "No bias-risk details",
+          "warn",
+          `Delete ${foundPrivate.join(", ")}. It wastes prime space and invites bias — most global employers expect it removed.`,
+        ),
+  );
+
+  // 13. File format.
+  const isPdf = fileName.toLowerCase().endsWith(".pdf");
+  checks.push(
+    isPdf
+      ? check("File format", "pass", "PDF — preserves layout across every ATS.")
+      : check(
+          "File format",
+          "warn",
+          "Submit a PDF unless the posting explicitly asks for .docx. Name it FirstName-LastName-Role.pdf.",
+        ),
+  );
+
+  const weights = { pass: 1, warn: 0.5, fail: 0 };
+  const formatScore = Math.round(
+    (checks.reduce((sum, c) => sum + weights[c.status], 0) / checks.length) * 100,
+  );
+
+  return { checks, formatScore };
+}
+
+/* ------------------------------------------------------------------ *
+ * Job-description keyword matching
+ * ------------------------------------------------------------------ */
+
+/** Concrete, matchable hiring vocabulary. Generic words are deliberately absent. */
+const TECH_VOCAB = [
+  "javascript",
+  "typescript",
+  "python",
+  "java",
+  "c#",
+  ".net",
+  "c++",
+  "go",
+  "golang",
+  "rust",
+  "ruby",
+  "php",
+  "kotlin",
+  "swift",
+  "dart",
+  "scala",
+  "sql",
+  "bash",
+  "react",
+  "react native",
+  "next.js",
+  "vue",
+  "angular",
+  "svelte",
+  "node.js",
+  "express",
+  "nestjs",
+  "django",
+  "flask",
+  "fastapi",
+  "spring boot",
+  "laravel",
+  "rails",
+  "asp.net",
+  "flutter",
+  "tailwind",
+  "redux",
+  "zustand",
+  "tanstack query",
+  "graphql",
+  "rest api",
+  "grpc",
+  "websockets",
+  "postgresql",
+  "mysql",
+  "sql server",
+  "oracle",
+  "mongodb",
+  "redis",
+  "elasticsearch",
+  "dynamodb",
+  "firebase",
+  "supabase",
+  "prisma",
+  "sequelize",
+  "docker",
+  "kubernetes",
+  "terraform",
+  "jenkins",
+  "github actions",
+  "gitlab ci",
+  "ci/cd",
+  "aws",
+  "azure",
+  "gcp",
+  "vercel",
+  "netlify",
+  "render",
+  "railway",
+  "cloudflare",
+  "lambda",
+  "serverless",
+  "microservices",
+  "kafka",
+  "rabbitmq",
+  "celery",
+  "linux",
+  "nginx",
+  "git",
+  "jira",
+  "agile",
+  "scrum",
+  "jest",
+  "vitest",
+  "cypress",
+  "playwright",
+  "selenium",
+  "junit",
+  "xunit",
+  "pytest",
+  "unit testing",
+  "integration testing",
+  "tdd",
+  "oop",
+  "solid",
+  "design patterns",
+  "data structures",
+  "algorithms",
+  "system design",
+  "pandas",
+  "numpy",
+  "pytorch",
+  "tensorflow",
+  "scikit-learn",
+  "machine learning",
+  "deep learning",
+  "nlp",
+  "llm",
+  "computer vision",
+  "power bi",
+  "tableau",
+  "etl",
+  "data warehouse",
+  "spark",
+  "airflow",
+  "figma",
+  "html",
+  "css",
+  "sass",
+  "webpack",
+  "vite",
+  "oauth",
+  "jwt",
+  "authentication",
+  "authorization",
+  "rbac",
+  "stripe",
+  "swagger",
+  "openapi",
+  "redis cache",
+  "caching",
+  "indexing",
+  "query optimization",
+  "load balancing",
+  "observability",
+  "monitoring",
+  "sentry",
+  "accessibility",
+  "responsive design",
+  "seo",
+  "web vitals",
+];
+
+/**
+ * Pulls concrete, checkable requirements out of a job description:
+ * known tech vocabulary plus capitalised proper nouns the posting repeats.
+ */
+export function extractJobKeywords(jobDescription: string, max = 26): string[] {
+  const lower = jobDescription.toLowerCase();
+  const found = new Set<string>();
+
+  for (const term of TECH_VOCAB) {
+    // Word-boundary match so "go" does not fire inside "google".
+    const pattern = new RegExp(`(^|[^a-z0-9+#.])${escapeRegex(term)}([^a-z0-9+#]|$)`, "i");
+    if (pattern.test(lower)) found.add(term);
   }
 
-  const analysis = await analyzeResumeText(supabase, userId, text);
-  const { data: saved, error: insertError } = await supabase.from("resume_analyses").insert({ user_id: userId, resume_id: resume.id, ...analysis }).select("*").single();
-  if (insertError) throw insertError;
+  // Capitalised multi-word tools the vocabulary does not know about yet.
+  const proper = jobDescription.match(/\b[A-Z][a-zA-Z0-9.+#]{2,}(?: [A-Z][a-zA-Z0-9.+#]{2,})?\b/g);
+  for (const raw of proper ?? []) {
+    const value = raw.trim();
+    if (value.length < 3 || value.length > 24) continue;
+    if (STOP_PROPER.has(value.toLowerCase())) continue;
+    if ([...found].some((f) => f.toLowerCase() === value.toLowerCase())) continue;
+    if (found.size >= max) break;
+    found.add(value.toLowerCase());
+  }
 
-  // Resume mentions are supporting evidence, never verified project demonstrations.
-  await syncResumeEvidence(supabase, userId, analysis.detected_skills, resume.file_name);
-  await saveReadiness(supabase, userId, await buildCareerState(supabase, userId));
-  return saved;
+  return [...found].slice(0, max);
+}
+
+const STOP_PROPER = new Set([
+  "the",
+  "you",
+  "we",
+  "our",
+  "your",
+  "this",
+  "they",
+  "and",
+  "for",
+  "with",
+  "about",
+  "role",
+  "team",
+  "job",
+  "company",
+  "position",
+  "responsibilities",
+  "requirements",
+  "qualifications",
+  "benefits",
+  "experience",
+  "years",
+  "apply",
+  "please",
+  "must",
+  "should",
+  "will",
+  "have",
+  "strong",
+  "good",
+  "excellent",
+  "bachelor",
+  "master",
+  "degree",
+  "monday",
+  "friday",
+  "full",
+  "part",
+  "time",
+  "remote",
+  "onsite",
+  "hybrid",
+  "office",
+  "candidate",
+  "candidates",
+  "engineer",
+  "engineers",
+  "developer",
+  "developers",
+  "description",
+]);
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Splits job keywords into the ones the CV proves and the ones it misses. */
+export function matchKeywords(
+  resumeText: string,
+  keywords: string[],
+): { hits: string[]; missing: string[] } {
+  const lower = resumeText.toLowerCase();
+  const hits: string[] = [];
+  const missing: string[] = [];
+  for (const keyword of keywords) {
+    const pattern = new RegExp(`(^|[^a-z0-9+#.])${escapeRegex(keyword)}([^a-z0-9+#]|$)`, "i");
+    (pattern.test(lower) ? hits : missing).push(keyword);
+  }
+  return { hits, missing };
+}
+
+/**
+ * Reads an uploaded resume, runs the ATS analysis, and stores the result.
+ * This is intentionally server-only: the private storage file never reaches
+ * the browser as a public URL.
+ */
+export async function analyzeStoredResume(
+  supabase: Client,
+  userId: string,
+  resumeId: string,
+): Promise<AnalysisResult & { id: string }> {
+  const { data: resume, error: resumeError } = await supabase
+    .from("resumes")
+    .select("id, file_name, file_path")
+    .eq("id", resumeId)
+    .eq("user_id", userId)
+    .single();
+  if (resumeError || !resume)
+    throw new Error("Resume not found or no longer belongs to this account.");
+
+  const { data: file, error: downloadError } = await supabase.storage
+    .from("resumes")
+    .download(resume.file_path);
+  if (downloadError || !file) throw new Error("We could not read your uploaded resume.");
+
+  const resumeText = await extractResumeText(
+    new Uint8Array(await file.arrayBuffer()),
+    resume.file_name,
+  );
+  if (!resumeText) throw new Error("No readable text was found in this resume.");
+
+  const { checks, formatScore } = auditResumeFormat(resumeText, resume.file_name);
+  const goal = await supabase
+    .from("career_goals")
+    .select("target_role")
+    .eq("user_id", userId)
+    .maybeSingle();
+  const targetRole = goal.data?.target_role ?? null;
+  const system =
+    "You are an ATS resume reviewer. Return only valid JSON with summary, strengths, weaknesses, detected_skills, recommendations (title and impact), and role_matches (role and match). Be specific and concise.";
+  let parsed: Record<string, unknown> = {};
+  try {
+    const raw = await groqChat(
+      [
+        { role: "system", content: system },
+        {
+          role: "user",
+          content: `Target role: ${targetRole ?? "not specified"}\nResume:\n${resumeText.slice(0, 16000)}`,
+        },
+      ],
+      { json: true, maxTokens: 1800, temperature: 0.2 },
+    );
+    parsed = parseJsonObject<Record<string, unknown>>(raw);
+  } catch (error) {
+    console.warn("[Resume] AI analysis failed; saving deterministic format result.", error);
+  }
+
+  const strings = (value: unknown) =>
+    Array.isArray(value)
+      ? value.filter((item): item is string => typeof item === "string").slice(0, 10)
+      : [];
+  const rawRecommendations = parsed["recommendations"];
+  const recommendations = Array.isArray(rawRecommendations)
+    ? rawRecommendations
+        .filter((item): item is { title: string; impact: string } =>
+          Boolean(
+            item &&
+            typeof item === "object" &&
+            typeof (item as Record<string, unknown>)["title"] === "string",
+          ),
+        )
+        .slice(0, 8)
+    : [];
+  const rawRoleMatches = parsed["role_matches"];
+  const roleMatches = Array.isArray(rawRoleMatches)
+    ? rawRoleMatches
+        .filter((item): item is { role: string; match: number } =>
+          Boolean(
+            item &&
+            typeof item === "object" &&
+            typeof (item as Record<string, unknown>)["role"] === "string",
+          ),
+        )
+        .slice(0, 6)
+    : [];
+  const result = {
+    scope: "general" as const,
+    target_company: null,
+    target_role: targetRole,
+    job_description: null,
+    ats_score: formatScore,
+    resume_score: formatScore,
+    career_match: roleMatches[0]?.match ?? formatScore,
+    verdict:
+      typeof parsed["verdict"] === "string"
+        ? parsed["verdict"]
+        : "Your resume has been checked for ATS readability and recruiter proof.",
+    summary:
+      typeof parsed["summary"] === "string"
+        ? parsed["summary"]
+        : "Your resume was analyzed with deterministic ATS formatting checks.",
+    strengths: strings(parsed["strengths"]),
+    weaknesses: strings(parsed["weaknesses"]),
+    detected_skills: strings(parsed["detected_skills"]),
+    recommendations,
+    role_matches: roleMatches,
+    keyword_hits: [],
+    missing_keywords: [],
+    format_audit: checks,
+    section_rewrites: [],
+  } satisfies AnalysisResult;
+
+  const { data: analysis, error: insertError } = await supabase
+    .from("resume_analyses")
+    .insert({
+      user_id: userId,
+      resume_id: resume.id,
+      ats_score: result.ats_score,
+      resume_score: result.resume_score,
+      career_match: result.career_match,
+      summary: result.summary,
+      strengths: result.strengths,
+      weaknesses: result.weaknesses,
+      detected_skills: result.detected_skills,
+      recommendations: result.recommendations,
+      role_matches: result.role_matches,
+      verdict: result.verdict,
+      format_audit: result.format_audit,
+    } as never)
+    .select("id")
+    .single();
+  if (insertError || !analysis)
+    throw insertError ?? new Error("Could not save the resume analysis.");
+
+  await supabase
+    .from("resumes")
+    .update({ content_text: resumeText })
+    .eq("id", resume.id)
+    .eq("user_id", userId);
+  return { ...result, id: analysis.id };
 }

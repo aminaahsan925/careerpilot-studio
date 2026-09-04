@@ -12,7 +12,14 @@ import { saveReadiness } from "./readiness.server";
 
 type Client = SupabaseClient<Database>;
 
-const str = (v: unknown, max = 200) => String(v ?? "").trim().slice(0, max);
+const str = (v: unknown, max = 200) =>
+  String(v ?? "")
+    .trim()
+    .slice(0, max);
+
+function normaliseSkill(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9+#.]/g, "");
+}
 
 /* ------------------------------------------------------------------ *
  * 1. Career discovery
@@ -211,19 +218,29 @@ export async function analyzeTargetJob(
     .single();
   if (jobError) throw jobError;
 
-  const validStatus = ["matched", "partial", "missing", "no_evidence"];
   const validPriority = ["high", "medium", "low"];
   const gapRows = (Array.isArray(out["gaps"]) ? (out["gaps"] as Record<string, unknown>[]) : [])
     .map((g, i) => {
       const skill = str(g["skill"], 120);
       if (!skill) return null;
-      const status = str(g["status"], 20).toLowerCase();
       const priority = str(g["priority"], 12).toLowerCase();
+      const actualSkill = state.skills.find(
+        (candidate) => normaliseSkill(candidate.name) === normaliseSkill(skill),
+      );
+      // The model extracts requirements and suggests actions. Evidence status is
+      // always derived from the user's recorded evidence, never model judgement.
+      const status = !actualSkill
+        ? "missing"
+        : actualSkill.sources.some((source) => source === "project" || source === "github")
+          ? "matched"
+          : actualSkill.evidenceStrength > 0
+            ? "partial"
+            : "no_evidence";
       return {
         user_id: userId,
         target_job_id: job.id as string,
         skill,
-        status: validStatus.includes(status) ? status : "missing",
+        status,
         priority: validPriority.includes(priority) ? priority : "medium",
         evidence: str(g["evidence"], 300) || null,
         required_level: str(g["required_level"], 120) || null,
@@ -295,6 +312,59 @@ export async function syncResumeEvidence(
   return { added: rows.length };
 }
 
+/**
+ * Adds user-submitted, linkable proof for explicitly named skills. This does
+ * not scrape a repository or infer skills: the user supplies both the skills
+ * and the GitHub/project URL, which stays attached as the evidence detail.
+ */
+export async function recordSkillEvidence(
+  supabase: Client,
+  userId: string,
+  input: { source: "github" | "project"; detail: string; skills: string[] },
+) {
+  const detail = str(input.detail, 500);
+  if (!/^https?:\/\//i.test(detail)) {
+    throw new Error("Add a valid GitHub or project URL as proof.");
+  }
+  const skills = Array.from(
+    new Map(
+      input.skills
+        .map((skill) => str(skill, 120))
+        .filter(Boolean)
+        .map((skill) => [normaliseSkill(skill), skill]),
+    ).values(),
+  ).slice(0, 12);
+  if (!skills.length) throw new Error("Name at least one skill this link demonstrates.");
+
+  const { data: existing, error: readError } = await supabase
+    .from("skill_evidence")
+    .select("skill_name")
+    .eq("user_id", userId)
+    .eq("source", input.source)
+    .eq("detail", detail);
+  if (readError) throw readError;
+
+  const have = new Set((existing ?? []).map((row) => normaliseSkill(row.skill_name ?? "")));
+  const rows = skills
+    .filter((skill) => !have.has(normaliseSkill(skill)))
+    .map((skill) => ({
+      user_id: userId,
+      skill_name: skill,
+      source: input.source,
+      detail,
+      // A submitted, linkable artefact is supporting project evidence, not a
+      // claim or an unverifiable AI inference.
+      strength: 2,
+    }));
+  if (rows.length) {
+    const { error } = await supabase.from("skill_evidence").insert(rows as never);
+    if (error) throw error;
+  }
+
+  const readiness = await saveReadiness(supabase, userId, await buildCareerState(supabase, userId));
+  return { added: rows.length, readiness };
+}
+
 /* ------------------------------------------------------------------ *
  * 4. Weekly goals
  * ------------------------------------------------------------------ */
@@ -350,9 +420,6 @@ export async function refreshReadiness(supabase: Client, userId: string) {
   return saveReadiness(supabase, userId, state);
 }
 
-export async function loadCareerState(
-  supabase: Client,
-  userId: string,
-): Promise<CareerState> {
+export async function loadCareerState(supabase: Client, userId: string): Promise<CareerState> {
   return buildCareerState(supabase, userId);
 }

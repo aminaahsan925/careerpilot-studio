@@ -1,15 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import { ArrowRight, Loader2, Sparkles } from "lucide-react";
 
-import { friendlyError } from "@/data/user";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>) => ({
     redirect: typeof search["redirect"] === "string" ? (search["redirect"] as string) : undefined,
+    reset: search["reset"] === "1" ? true : undefined,
   }),
   head: () => ({
     meta: [
@@ -35,12 +35,31 @@ const HIGHLIGHTS = [
 function AuthPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot" | "reset">(
+    search.reset ? "reset" : "signin",
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (search.reset) setMode("reset");
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setMode("reset");
+        setError(null);
+        setNotice("Choose a new password for your account.");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [search.reset]);
 
   function safeRedirect() {
     const target = search.redirect;
@@ -54,6 +73,30 @@ function AuthPage() {
     setNotice(null);
     setLoading(true);
     try {
+      if (mode === "forgot") {
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/auth?reset=1`,
+        });
+        if (resetError) throw resetError;
+        setNotice("Check your inbox for a password reset link.");
+        return;
+      }
+
+      if (mode === "reset") {
+        if (password.length < 6)
+          throw new Error("Please use a password with at least 6 characters.");
+        if (password !== confirmPassword) throw new Error("Passwords do not match.");
+
+        const { error: updateError } = await supabase.auth.updateUser({ password });
+        if (updateError) throw updateError;
+        await supabase.auth.signOut();
+        setNotice("Your password has been updated. You can now sign in.");
+        setMode("signin");
+        setPassword("");
+        setConfirmPassword("");
+        return;
+      }
+
       if (mode === "signup") {
         const { data, error: signUpError } = await supabase.auth.signUp({
           email,
@@ -61,8 +104,14 @@ function AuthPage() {
           options: { emailRedirectTo: window.location.origin },
         });
         if (signUpError) throw signUpError;
-        if (!data.session) {
+        if (!data.user) throw new Error("Supabase did not return a created user.");
+        if (!data.session && !data.user.email_confirmed_at) {
           setNotice("Check your inbox to confirm your email, then sign in.");
+          setMode("signin");
+          return;
+        }
+        if (!data.session) {
+          setNotice("Account created. Please sign in.");
           setMode("signin");
           return;
         }
@@ -72,7 +121,16 @@ function AuthPage() {
       }
       await navigate({ to: safeRedirect(), replace: true });
     } catch (err) {
-      setError(friendlyError(err, "We couldn't complete that. Please try again."));
+      console.error("CAREERPILOT AUTH ERROR:", err);
+
+      const message =
+        err instanceof Error
+          ? err.message
+          : typeof err === "object" && err !== null && "message" in err
+            ? String((err as { message: unknown }).message)
+            : String(err);
+
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -107,9 +165,7 @@ function AuthPage() {
           </ul>
         </div>
 
-        <p className="text-[12px] text-white/40">
-          © {new Date().getFullYear()} CareerPilot AI
-        </p>
+        <p className="text-[12px] text-white/40">© {new Date().getFullYear()} CareerPilot AI</p>
       </div>
 
       {/* FORM */}
@@ -126,67 +182,104 @@ function AuthPage() {
           </div>
 
           <h1 className="mt-6 text-[28px] font-bold tracking-[-0.02em] lg:mt-0">
-            {mode === "signin" ? "Welcome back" : "Create your account"}
+            {mode === "signin"
+              ? "Welcome back"
+              : mode === "signup"
+                ? "Create your account"
+                : mode === "forgot"
+                  ? "Reset your password"
+                  : "Choose a new password"}
           </h1>
           <p className="mt-1.5 text-[13.5px] text-muted-foreground">
             {mode === "signin"
               ? "Sign in to continue building your career."
-              : "Start with a profile that's actually yours."}
+              : mode === "signup"
+                ? "Start with a profile that's actually yours."
+                : mode === "forgot"
+                  ? "Enter your email and we'll send you a reset link."
+                  : "Use a new password for your CareerPilot account."}
           </p>
 
-          <div className="mt-7 flex rounded-xl border border-border bg-card p-1">
-            {(["signin", "signup"] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => {
-                  setMode(m);
-                  setError(null);
-                  setNotice(null);
-                }}
-                className={cn(
-                  "flex-1 rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors",
-                  mode === m ? "bg-ink text-white" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {m === "signin" ? "Sign In" : "Sign Up"}
-              </button>
-            ))}
-          </div>
+          {mode !== "forgot" && mode !== "reset" ? (
+            <div className="mt-7 flex rounded-xl border border-border bg-card p-1">
+              {(["signin", "signup"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => {
+                    setMode(m);
+                    setError(null);
+                    setNotice(null);
+                  }}
+                  className={cn(
+                    "flex-1 rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors",
+                    mode === m
+                      ? "bg-ink text-white"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {m === "signin" ? "Sign In" : "Sign Up"}
+                </button>
+              ))}
+            </div>
+          ) : null}
 
           <form onSubmit={onSubmit} className="mt-6 space-y-4">
-            <div>
-              <label htmlFor="email" className="text-[12.5px] font-semibold">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                required
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="mt-1.5 w-full rounded-xl border border-border bg-card px-4 py-3 text-[13.5px] outline-none transition-colors focus:border-terracotta"
-              />
-            </div>
+            {mode !== "reset" ? (
+              <div>
+                <label htmlFor="email" className="text-[12.5px] font-semibold">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="mt-1.5 w-full rounded-xl border border-border bg-card px-4 py-3 text-[13.5px] outline-none transition-colors focus:border-terracotta"
+                />
+              </div>
+            ) : null}
 
-            <div>
-              <label htmlFor="password" className="text-[12.5px] font-semibold">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                required
-                minLength={6}
-                autoComplete={mode === "signin" ? "current-password" : "new-password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 6 characters"
-                className="mt-1.5 w-full rounded-xl border border-border bg-card px-4 py-3 text-[13.5px] outline-none transition-colors focus:border-terracotta"
-              />
-            </div>
+            {mode !== "forgot" ? (
+              <div>
+                <label htmlFor="password" className="text-[12.5px] font-semibold">
+                  {mode === "reset" ? "New password" : "Password"}
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  required
+                  minLength={6}
+                  autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="At least 6 characters"
+                  className="mt-1.5 w-full rounded-xl border border-border bg-card px-4 py-3 text-[13.5px] outline-none transition-colors focus:border-terracotta"
+                />
+              </div>
+            ) : null}
+
+            {mode === "reset" ? (
+              <div>
+                <label htmlFor="confirm-password" className="text-[12.5px] font-semibold">
+                  Confirm new password
+                </label>
+                <input
+                  id="confirm-password"
+                  type="password"
+                  required
+                  minLength={6}
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Repeat your new password"
+                  className="mt-1.5 w-full rounded-xl border border-border bg-card px-4 py-3 text-[13.5px] outline-none transition-colors focus:border-terracotta"
+                />
+              </div>
+            ) : null}
 
             {error ? (
               <p className="rounded-xl border border-terracotta/30 bg-terracotta/8 px-4 py-3 text-[12.5px] text-terracotta">
@@ -207,31 +300,62 @@ function AuthPage() {
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  {mode === "signin" ? "Signing in…" : "Creating account…"}
+                  {mode === "signin"
+                    ? "Signing in…"
+                    : mode === "signup"
+                      ? "Creating account…"
+                      : mode === "forgot"
+                        ? "Sending reset link…"
+                        : "Updating password…"}
                 </>
               ) : (
                 <>
-                  {mode === "signin" ? "Sign In" : "Create Account"}
+                  {mode === "signin"
+                    ? "Sign In"
+                    : mode === "signup"
+                      ? "Create Account"
+                      : mode === "forgot"
+                        ? "Send Reset Link"
+                        : "Update Password"}
                   <ArrowRight className="h-4 w-4" />
                 </>
               )}
             </button>
           </form>
 
-          <p className="mt-6 text-center text-[12.5px] text-muted-foreground">
-            {mode === "signin" ? "New to CareerPilot?" : "Already have an account?"}{" "}
+          {mode !== "reset" ? (
+            <p className="mt-6 text-center text-[12.5px] text-muted-foreground">
+              {mode === "signin"
+                ? "New to CareerPilot?"
+                : mode === "signup"
+                  ? "Already have an account?"
+                  : "Remembered your password?"}{" "}
+              <button
+                type="button"
+                onClick={() => {
+                  setMode(mode === "forgot" ? "signin" : mode === "signin" ? "signup" : "signin");
+                  setError(null);
+                  setNotice(null);
+                }}
+                className="font-semibold text-terracotta hover:underline"
+              >
+                {mode === "signin" ? "Create one" : mode === "signup" ? "Sign in" : "Sign in"}
+              </button>
+            </p>
+          ) : null}
+          {mode === "signin" ? (
             <button
               type="button"
               onClick={() => {
-                setMode(mode === "signin" ? "signup" : "signin");
+                setMode("forgot");
                 setError(null);
                 setNotice(null);
               }}
-              className="font-semibold text-terracotta hover:underline"
+              className="mt-3 block w-full text-center text-[12.5px] font-semibold text-terracotta hover:underline"
             >
-              {mode === "signin" ? "Create one" : "Sign in"}
+              Forgot password?
             </button>
-          </p>
+          ) : null}
         </motion.div>
       </div>
     </div>
