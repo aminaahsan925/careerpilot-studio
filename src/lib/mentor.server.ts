@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/integrations/supabase/types";
 import { groqChat, type ChatMsg } from "./ai.server";
+import { consumeAiQuota } from "./ai-quota.server";
 
 type Client = SupabaseClient<Database>;
 
@@ -134,6 +135,10 @@ export async function runMentorTurn(
   if (!trimmed) throw new Error("Please type a message first.");
   if (trimmed.length > 2000)
     throw new Error("That message is too long — keep it under 2000 characters.");
+
+  // Phase 1 cost control: consume quota BEFORE the try/fallback below so an
+  // over-quota user gets a clear message instead of the generic fallback.
+  await consumeAiQuota(supabase, userId, "mentor-chat");
 
   const [context, historyRes] = await Promise.all([
     buildCareerContext(supabase, userId),

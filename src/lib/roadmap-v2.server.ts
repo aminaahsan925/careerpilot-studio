@@ -1,4 +1,5 @@
-import { groqChat, parseJsonObject } from "./ai.server";
+import { parseJsonObject } from "./ai.server";
+import { guardedChat } from "./ai-quota.server";
 import { buildCareerContext } from "./mentor.server";
 import { generateMarketReality, type MarketReality } from "./market.server";
 import { loadLatestDiagnosis, type CareerDiagnosis } from "./diagnosis.server";
@@ -327,7 +328,7 @@ export async function generateRoadmapV2(
 
     for (let attempt = 1; attempt <= MAX_AI_ATTEMPTS; attempt++) {
       try {
-        raw = await groqChat(
+        raw = await guardedChat(supabaseAdmin, userId, "roadmap-v2", 
           [
             { role: "system", content: ROADMAP_V2_SYSTEM_PROMPT },
             { role: "user", content: userMessage },

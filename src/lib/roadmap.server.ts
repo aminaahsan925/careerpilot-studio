@@ -2,7 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/integrations/supabase/types";
 import { buildCareerContext } from "./mentor.server";
-import { groqChat, parseJsonObject, stringList } from "./ai.server";
+import { parseJsonObject, stringList } from "./ai.server";
+import { guardedChat } from "./ai-quota.server";
 
 type Client = SupabaseClient<Database>;
 
@@ -34,7 +35,7 @@ export async function generateRoadmapFor(supabase: Client, userId: string) {
 
   const context = await buildCareerContext(supabase, userId);
 
-  const raw = await groqChat(
+  const raw = await guardedChat(supabase, userId, "roadmap", 
     [
       { role: "system", content: SYSTEM },
       {

@@ -1,5 +1,6 @@
 import { tavilySearch, type TavilySearchResponse } from "./tavily.server";
-import { groqChat, parseJsonObject } from "./ai.server";
+import { parseJsonObject } from "./ai.server";
+import { guardedChat } from "./ai-quota.server";
 import { resolveRoleProfile, type RoleTruthProfile } from "@/data/market-truth";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
@@ -212,7 +213,7 @@ Return a JSON object:
   ].join("\n");
 
   try {
-    const raw = await groqChat(
+    const raw = await guardedChat(supabaseAdmin, userId, "outdated-tech", 
       [
         { role: "system", content: systemPrompt },
         { role: "user", content: userMessage },

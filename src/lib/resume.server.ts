@@ -2,7 +2,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { matchCompanyTruth } from "@/data/company-truth";
 import type { Database } from "@/integrations/supabase/types";
-import { clampScore, groqChat, parseJsonObject, stringList } from "./ai.server";
+import { clampScore, parseJsonObject, stringList } from "./ai.server";
+import { guardedChat } from "./ai-quota.server";
+import { ingestResumeEvidence } from "./evidence/ingestion";
 import { syncResumeEvidence } from "./career.server";
 import { buildCareerState, careerStateToPrompt } from "./career-state.server";
 import { buildCareerContext } from "./mentor.server";
@@ -645,7 +647,7 @@ export async function analyzeStoredResume(
     "You are an ATS resume reviewer. Return only valid JSON with summary, strengths, weaknesses, detected_skills, recommendations (title and impact), and role_matches (role and match). Be specific and concise.";
   let parsed: Record<string, unknown> = {};
   try {
-    const raw = await groqChat(
+    const raw = await guardedChat(supabase, userId, "resume-analysis", 
       [
         { role: "system", content: system },
         {
@@ -742,5 +744,18 @@ export async function analyzeStoredResume(
     .update({ content_text: resumeText })
     .eq("id", resume.id)
     .eq("user_id", userId);
+
+  // Phase A: ingest the resume into the evidence layer (chunk + embed +
+  // evidence items). Idempotent; a failure here must never break the
+  // analysis response.
+  try {
+    await ingestResumeEvidence(supabase, userId, resume.id);
+  } catch (err) {
+    console.error(
+      "[evidence] resume ingestion failed:",
+      err instanceof Error ? err.message : String(err),
+    );
+  }
+
   return { ...result, id: analysis.id };
 }

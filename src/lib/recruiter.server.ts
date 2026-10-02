@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { matchCompanyTruth, type CompanyHiringTruth } from "@/data/company-truth";
 import type { Database } from "@/integrations/supabase/types";
 import { clampScore, groqChat, parseJsonObject, stringList } from "./ai.server";
+import { consumeAiQuota, guardedChat } from "./ai-quota.server";
 import { buildCareerState, careerStateToPrompt, type CareerState } from "./career-state.server";
 
 type Client = SupabaseClient<Database>;
@@ -276,7 +277,7 @@ Evaluate this candidate as ${companyTruth.name}'s Head of Talent. Return JSON:
   "recruiter_questions": string[] (4 probing questions you would ask in a real screen)
 }`;
 
-    const raw = await groqChat(
+    const raw = await guardedChat(supabase, userId, "recruiter-audit",
       [
         { role: "system", content: recruiterSystemPrompt(companyTruth, targetRole) },
         { role: "user", content: prompt },
@@ -451,6 +452,10 @@ Keep responses concise (2-4 paragraphs max). Be direct, specific, and actionable
     ...chatHistory,
     { role: "user" as const, content: userMessage },
   ];
+
+  // Phase 1 cost control: consume quota BEFORE the try block so an
+  // over-quota user gets a clear message, not the generic fallback below.
+  await consumeAiQuota(supabase, userId, "recruiter-chat");
 
   let reply: string;
   try {
