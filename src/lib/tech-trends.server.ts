@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { AiError, groqChat, parseJsonObject, type ChatMsg } from "./ai.server";
+import { AiError, parseJsonObject, type ChatMsg } from "./ai.server";
+import { guardedChat } from "./ai-quota.server";
 import {
   researchTechTrends,
   tavilySearch,
@@ -77,6 +78,7 @@ const GLOBAL_TOPIC = "global_tech_trends";
  */
 export async function getTechTrends(
   supabase: Client,
+  userId: string,
   opts?: { forceRefresh?: boolean; category?: string },
 ): Promise<TechTrendsReport> {
   const category = opts?.category ?? "All";
@@ -117,7 +119,7 @@ export async function getTechTrends(
   // 3. Synthesise via AI
   let report: TechTrendsReport;
   try {
-    report = await synthesiseTrends(tavilyResults, category);
+    report = await synthesiseTrends(supabase, userId, tavilyResults, category);
   } catch (error) {
     if (error instanceof AiError) {
       console.warn("[TechTrends] AI synthesis failed, building fallback:", error.message);
@@ -139,6 +141,7 @@ export async function getTechTrends(
  */
 export async function getTechTrendDetail(
   supabase: Client,
+  userId: string,
   technologyName: string,
 ): Promise<TechTrend> {
   // Search for the specific technology
@@ -156,7 +159,7 @@ export async function getTechTrendDetail(
     },
   ];
 
-  const raw = await groqChat(messages, { json: true, maxTokens: 2500, temperature: 0.4 });
+  const raw = await guardedChat(supabase, userId, "tech-trend-detail", messages, { json: true, maxTokens: 2500, temperature: 0.4 });
   const data = parseJsonObject<Record<string, unknown>>(raw);
   return enrichTrendSources(shapeTechTrend(data, technologyName), searchResult);
 }
@@ -284,6 +287,8 @@ Return a JSON object:
 }`;
 
 async function synthesiseTrends(
+  supabase: Client,
+  userId: string,
   tavilyResults: TavilySearchResponse[],
   category: string,
 ): Promise<TechTrendsReport> {
@@ -302,7 +307,7 @@ async function synthesiseTrends(
     },
   ];
 
-  const raw = await groqChat(messages, { json: true, maxTokens: 3000, temperature: 0.4 });
+  const raw = await guardedChat(supabase, userId, "tech-trends-refresh", messages, { json: true, maxTokens: 3000, temperature: 0.4 });
   const data = parseJsonObject<Record<string, unknown>>(raw);
 
   const featured = shapeTechTrend((data["featured"] as Record<string, unknown>) ?? {}, "Unknown");
