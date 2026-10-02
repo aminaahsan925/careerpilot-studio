@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/integrations/supabase/types";
-import { groqChat, parseJsonObject, stringList } from "./ai.server";
+import { parseJsonObject, stringList } from "./ai.server";
+import { guardedChat } from "./ai-quota.server";
 import {
   buildCareerState,
   careerStateToPrompt,
@@ -54,7 +55,7 @@ export async function runCareerDiscovery(
 ) {
   const state = await buildCareerState(supabase, userId);
 
-  const raw = await groqChat(
+  const raw = await guardedChat(supabase, userId, "career-discovery",
     [
       { role: "system", content: DISCOVERY_SYSTEM },
       {
@@ -176,7 +177,7 @@ export async function analyzeTargetJob(
 
   const state = await buildCareerState(supabase, userId);
 
-  const raw = await groqChat(
+  const raw = await guardedChat(supabase, userId, "job-analysis",
     [
       { role: "system", content: JOB_SYSTEM },
       {
@@ -380,7 +381,7 @@ export async function generateWeeklyGoals(supabase: Client, userId: string) {
   if (!state.targetRole)
     throw new Error("Set a target career first so weekly goals can be tailored to it.");
 
-  const raw = await groqChat(
+  const raw = await guardedChat(supabase, userId, "weekly-goals",
     [
       { role: "system", content: GOALS_SYSTEM },
       { role: "user", content: `=== CAREER STATE ===\n${careerStateToPrompt(state)}` },

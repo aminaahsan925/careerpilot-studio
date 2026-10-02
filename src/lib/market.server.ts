@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { AiError, groqChat, parseJsonObject, type ChatMsg } from "./ai.server";
+import { AiError, parseJsonObject, type ChatMsg } from "./ai.server";
+import { guardedChat } from "./ai-quota.server";
 import {
   collectMarketEvidence,
   type MarketEvidence,
@@ -141,7 +142,7 @@ export async function generateMarketReality(
       { role: "user", content: buildAnalysisPrompt(targetRole, targetIndustry, evidence) },
     ];
 
-    const raw = await groqChat(messages, { json: true, maxTokens: 3000, temperature: 0.4 });
+    const raw = await guardedChat(supabase, userId, "market-reality", messages, { json: true, maxTokens: 3000, temperature: 0.4 });
     const data = parseJsonObject<Record<string, unknown>>(raw);
     report = shapeMarketReality(data, targetRole, targetIndustry, evidence);
   } catch (error) {

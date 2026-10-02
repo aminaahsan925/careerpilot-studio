@@ -36,7 +36,8 @@ import {
   type TruthStatement,
 } from "@/data/market-truth";
 import type { Database } from "@/integrations/supabase/types";
-import { groqChat, parseJsonObject } from "./ai.server";
+import { parseJsonObject } from "./ai.server";
+import { guardedChat } from "./ai-quota.server";
 import { buildCareerState, type CareerState } from "./career-state.server";
 import {
   coverageOf,
@@ -300,11 +301,13 @@ const clamp = (value: unknown, max: number) =>
  * returns null and the caller still ships a complete, cited report.
  */
 async function personalize(
+  supabase: Client,
+  userId: string,
   report: JobMirrorReport,
   state: CareerState,
 ): Promise<MirrorPersonalization | null> {
   try {
-    const raw = await groqChat(
+    const raw = await guardedChat(supabase, userId, "job-mirror", 
       [
         { role: "system", content: SYSTEM },
         { role: "user", content: buildPrompt(report, state) },
@@ -326,13 +329,15 @@ async function personalize(
 }
 
 async function personalizeWithinBudget(
+  supabase: Client,
+  userId: string,
   report: JobMirrorReport,
   state: CareerState,
 ): Promise<MirrorPersonalization | null> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
-      personalize(report, state),
+      personalize(supabase, userId, report, state),
       new Promise<null>((resolve) => {
         timeoutId = setTimeout(() => resolve(null), 4_000);
       }),
@@ -537,6 +542,6 @@ export async function generateJobMirror(
 
   // Personalization is optional; never hold the complete market report hostage
   // to a slow or exhausted AI provider.
-  report.personalized = await personalizeWithinBudget(report, state);
+  report.personalized = await personalizeWithinBudget(supabase, userId, report, state);
   return report;
 }

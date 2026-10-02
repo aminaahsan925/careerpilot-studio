@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/integrations/supabase/types";
-import { groqChat, parseJsonObject } from "./ai.server";
+import { parseJsonObject } from "./ai.server";
+import { guardedChat } from "./ai-quota.server";
 import { buildCareerState, careerStateToPrompt, type CareerState } from "./career-state.server";
 import { tavilySearch, type TavilyResult } from "./tavily.server";
 
@@ -318,7 +319,7 @@ export async function assessFlightPlan(
     .join("\n");
 
   try {
-    const raw = await groqChat(
+    const raw = await guardedChat(supabase, userId, "flight-plan", 
       [
         { role: "system", content: SYSTEM },
         {

@@ -10,7 +10,8 @@ import {
   type CompanyHiringTruth,
 } from "@/data/company-truth";
 import type { Database } from "@/integrations/supabase/types";
-import { groqChat, parseJsonObject, stringList } from "./ai.server";
+import { parseJsonObject, stringList } from "./ai.server";
+import { guardedChat } from "./ai-quota.server";
 import { buildCareerState, careerStateToPrompt, type CareerState } from "./career-state.server";
 import { benchmarkRole, type MarketBenchmark } from "./market-fit";
 import { saveReadiness, type Readiness } from "./readiness.server";
@@ -430,7 +431,7 @@ Return JSON with:
   ]
 }`;
 
-    raw = await groqChat(
+    raw = await guardedChat(supabase, userId, "career-diagnosis", 
       [
         { role: "system", content: SYSTEM },
         { role: "user", content: prompt },
