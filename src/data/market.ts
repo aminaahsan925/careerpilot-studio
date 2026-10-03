@@ -5,6 +5,7 @@ import {
   getMarketRealityFresh,
   getOutdatedTech,
   invalidateMarketReality,
+  updateMarketLocation,
   updateTargetRole,
 } from "@/lib/market.functions";
 import { friendlyError } from "./user";
@@ -65,6 +66,22 @@ export function useUpdateTargetRole() {
     onSuccess: () => {
       // Invalidate the current user so sidebar reflects the new goal
       queryClient.invalidateQueries({ queryKey: ["current-user"] });
+      // Invalidate the market report cache so the next fetch is fresh
+      queryClient.invalidateQueries({ queryKey: MARKET_REALITY_QUERY_KEY });
+    },
+  });
+}
+
+/**
+ * Update the user's market location (country/city/remote) and trigger a
+ * fresh, geographically-scoped market report.
+ */
+export function useUpdateMarketLocation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (location: string | null) =>
+      updateMarketLocation({ data: { location } }),
+    onSuccess: () => {
       // Invalidate the market report cache so the next fetch is fresh
       queryClient.invalidateQueries({ queryKey: MARKET_REALITY_QUERY_KEY });
     },

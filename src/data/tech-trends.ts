@@ -35,13 +35,15 @@ export type TechTrendCategory = (typeof TECH_TREND_CATEGORIES)[number];
 export const TECH_TRENDS_QUERY_KEY = ["tech-trends"] as const;
 export const TECH_TRACKING_QUERY_KEY = ["tech-tracking"] as const;
 
-/** Fetch a fresh global web report on every page mount. */
-export function useTechTrends() {
+/** Fetch a fresh web report on every page mount. Category is optional —
+ *  the page filters client-side, but callers can request a
+ *  category-scoped report (cached per category server-side). */
+export function useTechTrends(category: TechTrendCategory = "All") {
   return useQuery({
-    queryKey: TECH_TRENDS_QUERY_KEY,
+    queryKey: [...TECH_TRENDS_QUERY_KEY, category],
     queryFn: async () => {
       try {
-        const result = await getTechTrendsFresh();
+        const result = await getTechTrendsFresh({ data: { category } });
         return result;
       } catch (error) {
         throw new Error(friendlyError(error, "Tech trends couldn't be loaded. Please try again."));
@@ -55,11 +57,11 @@ export function useTechTrends() {
 }
 
 /** Force-refresh the tech trends report, bypassing all caches. */
-export function useRefreshTechTrends() {
+export function useRefreshTechTrends(category: TechTrendCategory = "All") {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async () => {
-      const result = await getTechTrendsFresh();
+      const result = await getTechTrendsFresh({ data: { category } });
       return result;
     },
     onSuccess: (data) => {

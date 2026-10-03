@@ -91,6 +91,45 @@ export const updateTargetRole = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Update the user's market location and invalidate the market cache so a
+ *  fresh, geographically-scoped report is generated on the next visit. */
+export const updateMarketLocation = createServerFn({ method: "POST" })
+  .inputValidator((input: { location: string | null }) => {
+    const raw = input?.location;
+    const location = typeof raw === "string" ? raw.trim().slice(0, 120) : null;
+    return { location: location && location.length > 0 ? location : null };
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    console.info("[CareerPilot][updateMarketLocation]", {
+      userId: context.userId,
+      location: data.location,
+    });
+    const { invalidateMarketRealityCache } = await import("./market.server");
+    // career_goals.target_role is NOT NULL, so this must be an UPDATE of an
+    // existing goal row (the Market Reality page requires a target role
+    // before it can load at all).
+    const { data: updated, error } = await context.supabase
+      .from("career_goals")
+      .update({ location: data.location } as never)
+      .eq("user_id", context.userId)
+      .select("user_id");
+    if (error) {
+      console.error(
+        "[CareerPilot][updateMarketLocation] DB error:",
+        error.message,
+      );
+      throw error;
+    }
+    if (!updated || updated.length === 0) {
+      throw new Error(
+        "Set a target role first, then choose a market location.",
+      );
+    }
+    await invalidateMarketRealityCache(context.supabase, context.userId);
+    return { ok: true, location: data.location };
+  });
+
 /** Detect outdated technologies in the student's skill set relative to
  *  their target role. Uses Tavily for fresh market signals. */
 export const getOutdatedTech = createServerFn({ method: "GET" })

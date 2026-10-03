@@ -2,17 +2,28 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-/** Fetch (or generate) the global tech trends report.
+/** Fetch (or generate) the tech trends report for a category.
  *  Returns cached data when available. */
 export const getTechTrendsReport = createServerFn({ method: "GET" })
+  .inputValidator((input: { category?: string }) => {
+    const category = String(input?.category ?? "All").trim() || "All";
+    if (category.length > 40) throw new Error("Category name is too long.");
+    return { category };
+  })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    console.info("[CareerPilot][getTechTrendsReport] start", { userId: context.userId });
+  .handler(async ({ data, context }) => {
+    console.info("[CareerPilot][getTechTrendsReport] start", {
+      userId: context.userId,
+      category: data.category,
+    });
     const { getTechTrends } = await import("./tech-trends.server");
     try {
-      const result = await getTechTrends(context.supabase, context.userId);
+      const result = await getTechTrends(context.supabase, context.userId, {
+        category: data.category,
+      });
       console.info("[CareerPilot][getTechTrendsReport] success", {
         userId: context.userId,
+        category: data.category,
         fromCache: result.fromCache,
         featured: result.featured.name,
       });
@@ -20,6 +31,7 @@ export const getTechTrendsReport = createServerFn({ method: "GET" })
     } catch (error) {
       console.error("[CareerPilot][getTechTrendsReport] failed", {
         userId: context.userId,
+        category: data.category,
         error: error instanceof Error ? error.message : String(error),
       });
       throw error;
@@ -28,20 +40,33 @@ export const getTechTrendsReport = createServerFn({ method: "GET" })
 
 /** Force-regenerate the tech trends report, bypassing cache. */
 export const getTechTrendsFresh = createServerFn({ method: "GET" })
+  .inputValidator((input: { category?: string }) => {
+    const category = String(input?.category ?? "All").trim() || "All";
+    if (category.length > 40) throw new Error("Category name is too long.");
+    return { category };
+  })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    console.info("[CareerPilot][getTechTrendsFresh] start", { userId: context.userId });
+  .handler(async ({ data, context }) => {
+    console.info("[CareerPilot][getTechTrendsFresh] start", {
+      userId: context.userId,
+      category: data.category,
+    });
     const { getTechTrends } = await import("./tech-trends.server");
     try {
-      const result = await getTechTrends(context.supabase, context.userId, { forceRefresh: true });
+      const result = await getTechTrends(context.supabase, context.userId, {
+        forceRefresh: true,
+        category: data.category,
+      });
       console.info("[CareerPilot][getTechTrendsFresh] success", {
         userId: context.userId,
+        category: data.category,
         featured: result.featured.name,
       });
       return result;
     } catch (error) {
       console.error("[CareerPilot][getTechTrendsFresh] failed", {
         userId: context.userId,
+        category: data.category,
         error: error instanceof Error ? error.message : String(error),
       });
       throw error;

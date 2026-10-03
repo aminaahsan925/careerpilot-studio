@@ -112,6 +112,7 @@ export async function detectOutdatedTechnologies(
 
   // 4. Use Groq to synthesize the analysis
   const report = await analyzeOutdatedTech(
+    userId,
     targetRole,
     studentSkills,
     roleRequiredSkills,
@@ -159,6 +160,7 @@ async function searchDecliningTech(
  * and produce a structured outdated tech report.
  */
 async function analyzeOutdatedTech(
+  userId: string,
   targetRole: string,
   studentSkills: string[],
   roleRequiredSkills: string[],

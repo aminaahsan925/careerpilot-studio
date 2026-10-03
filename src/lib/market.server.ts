@@ -1,16 +1,37 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { MARKET_TRUTH_VERSION } from "@/data/market-truth";
 import { AiError, parseJsonObject, type ChatMsg } from "./ai.server";
 import { guardedChat } from "./ai-quota.server";
 import { strArray } from "./coerce";
 import {
   collectMarketEvidence,
+  parseLocationFilter,
   type MarketEvidence,
   type MarketResearchInputs,
 } from "./market-research.server";
+import { locationCacheKey } from "./jobs/providers";
 import type { Database, Json } from "@/integrations/supabase/types";
 
 type Client = SupabaseClient<Database>;
+
+/**
+ * Deterministic cache-key fragment for a Market Reality report.
+ * Includes the dataset version (a dataset update must not serve stale
+ * reports) and the location scope (different locations, different
+ * markets). Exported for tests.
+ */
+export function marketCacheKey(
+  targetRole: string,
+  datasetVersion: string,
+  location: string | null,
+): string {
+  const filter = parseLocationFilter(location);
+  const locationPart = filter ? locationCacheKey(filter) : "global";
+  return [targetRole.trim().toLowerCase(), datasetVersion, locationPart].join(
+    "::",
+  );
+}
 
 /* ------------------------------------------------------------------ *
  * Market Reality — Phase 2 · Analysis Layer
@@ -39,6 +60,11 @@ export type MarketSkillDemand = {
 export type MarketReality = {
   targetRole: string;
   targetIndustry: string | null;
+  /**
+   * Geographic scope the report was generated for, as entered by the user
+   * ("Lahore, Pakistan", "Remote", ...). Null = global view.
+   */
+  location: string | null;
   roleSnapshot: {
     summary: string; // one-paragraph overview of the role
     involves: string[]; // bullet points of typical activities
@@ -112,19 +138,35 @@ export async function generateMarketReality(
   }
 
   const targetIndustry = goal?.target_industry ?? null;
+  // `location` is added by the Phase 3 migration; read defensively until
+  // the generated DB types know it.
+  const location =
+    ((goal as { location?: string | null } | null)?.location ?? null)?.trim() ||
+    null;
 
   const preloaded: MarketResearchInputs = {
     targetRole,
     targetIndustry,
     education: profile?.education_level ?? null,
     experience: profile?.experience ?? null,
+    location: parseLocationFilter(location),
   };
 
   /* 2. Check cache --------------------------------------------------------- */
   if (!opts?.forceRefresh) {
-    const cached = await loadFromCache(supabase, userId, targetRole);
+    const cached = await loadFromCache(
+      supabase,
+      userId,
+      targetRole,
+      MARKET_TRUTH_VERSION,
+      location,
+    );
     if (cached) {
-      console.info("[MarketReality] served from cache", { userId, targetRole });
+      console.info("[MarketReality] served from cache", {
+        userId,
+        targetRole,
+        location,
+      });
       return { ...cached, fromCache: true };
     }
   }
@@ -145,21 +187,40 @@ export async function generateMarketReality(
 
     const raw = await guardedChat(supabase, userId, "market-reality", messages, { json: true, maxTokens: 3000, temperature: 0.4 });
     const data = parseJsonObject<Record<string, unknown>>(raw);
-    report = shapeMarketReality(data, targetRole, targetIndustry, evidence);
+    report = shapeMarketReality(
+      data,
+      targetRole,
+      targetIndustry,
+      location,
+      evidence,
+    );
   } catch (error) {
     if (error instanceof AiError) {
       console.warn(
         "[MarketReality] AI synthesis failed, falling back to raw evidence:",
         error.message,
       );
-      report = buildFallbackFromEvidence(targetRole, targetIndustry, evidence);
+      report = buildFallbackFromEvidence(
+        targetRole,
+        targetIndustry,
+        location,
+        evidence,
+      );
     } else {
       throw error;
     }
   }
 
   /* 5. Persist to cache ---------------------------------------------------- */
-  await saveToCache(supabase, userId, targetRole, targetIndustry, report, evidence);
+  await saveToCache(
+    supabase,
+    userId,
+    targetRole,
+    targetIndustry,
+    location,
+    report,
+    evidence,
+  );
 
   return report;
 }
@@ -183,12 +244,24 @@ async function loadFromCache(
   supabase: Client,
   userId: string,
   targetRole: string,
+  datasetVersion: string,
+  location: string | null,
 ): Promise<MarketReality | null> {
-  const { data, error } = await supabase
+  // NULL location means the global view; match it exactly so a
+  // location-scoped report is never served as global (or vice versa).
+  let filtered = supabase
     .from("market_reality_cache")
     .select("report, target_role, target_industry")
     .eq("user_id", userId)
     .eq("target_role", targetRole)
+    // dataset_version + location are Phase 3 columns not yet in the
+    // generated DB types; cast the column names so the filter compiles.
+    .eq("dataset_version" as never, datasetVersion);
+  filtered =
+    location === null
+      ? filtered.is("location" as never, null)
+      : filtered.eq("location" as never, location);
+  const { data, error } = await filtered
     .gte("expires_at", new Date().toISOString())
     .order("created_at", { ascending: false })
     .limit(1)
@@ -198,7 +271,12 @@ async function loadFromCache(
 
   try {
     const report = data.report as unknown as Record<string, unknown>;
-    return parseMarketRealityFromCache(report, data.target_role, data.target_industry);
+    return parseMarketRealityFromCache(
+      report,
+      data.target_role,
+      data.target_industry,
+      location,
+    );
   } catch {
     return null;
   }
@@ -209,6 +287,7 @@ async function saveToCache(
   userId: string,
   targetRole: string,
   targetIndustry: string | null,
+  location: string | null,
   report: MarketReality,
   evidence: MarketEvidence,
 ): Promise<void> {
@@ -227,14 +306,19 @@ async function saveToCache(
     return;
   }
 
-  const { error: insertError } = await supabase.from("market_reality_cache").insert({
-    user_id: userId,
-    target_role: targetRole,
-    target_industry: targetIndustry,
-    report: report as unknown as Json,
-    evidence: evidence as unknown as Json,
-    expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-  });
+  // The generated DB types predate the Phase 3 columns; insert defensively.
+  const { error: insertError } = await supabase
+    .from("market_reality_cache")
+    .insert({
+      user_id: userId,
+      target_role: targetRole,
+      target_industry: targetIndustry,
+      report: report as unknown as Json,
+      evidence: evidence as unknown as Json,
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      dataset_version: MARKET_TRUTH_VERSION,
+      location,
+    } as never);
 
   if (insertError) {
     console.error(
@@ -253,6 +337,7 @@ function parseMarketRealityFromCache(
   raw: Record<string, unknown>,
   fallbackRole: string,
   fallbackIndustry: string | null,
+  location: string | null,
 ): MarketReality {
   // The cached report was already shaped when first generated,
   // so we can return it directly with minimal validation.
@@ -265,6 +350,7 @@ function parseMarketRealityFromCache(
     targetIndustry:
       (typeof raw["targetIndustry"] === "string" ? raw["targetIndustry"] : fallbackIndustry) ??
       fallbackIndustry,
+    location: typeof raw["location"] === "string" ? raw["location"] : location,
     /* Reports cached before the dataset became the evidence source were built
        from model recall. They have no research date and must not claim one. */
     evidenceProvider:
@@ -374,6 +460,7 @@ Return a JSON object with EXACTLY this structure:
 function buildFallbackFromEvidence(
   targetRole: string,
   targetIndustry: string | null,
+  location: string | null,
   evidence: MarketEvidence,
 ): MarketReality {
   const gl = evidence.globalMarket;
@@ -396,6 +483,7 @@ function buildFallbackFromEvidence(
   return {
     targetRole,
     targetIndustry,
+    location,
     roleSnapshot: {
       summary:
         gl.demand || `Global market data for ${targetRole} — evidence collected successfully.`,
@@ -440,6 +528,7 @@ function shapeMarketReality(
   data: Record<string, unknown>,
   targetRole: string,
   targetIndustry: string | null,
+  location: string | null,
   evidence: MarketEvidence,
 ): MarketReality {
   const roleSnapshot = (data["roleSnapshot"] as Record<string, unknown>) ?? {};
@@ -451,6 +540,7 @@ function shapeMarketReality(
   return {
     targetRole,
     targetIndustry,
+    location,
     roleSnapshot: {
       summary: typeof roleSnapshot["summary"] === "string" ? roleSnapshot["summary"] : "",
       involves: strArray(roleSnapshot["involves"], 6),
