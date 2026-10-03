@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -51,6 +51,7 @@ import { Label } from "@/components/ui/label";
 import {
   useMarketReality,
   useRefreshMarketReality,
+  useUpdateMarketLocation,
   useUpdateTargetRole,
   useOutdatedTech,
 } from "@/data/market";
@@ -109,6 +110,7 @@ function MarketRealityPage() {
   const { data: outdatedData } = useOutdatedTech();
   const refreshMutation = useRefreshMarketReality();
   const updateRole = useUpdateTargetRole();
+  const updateLocation = useUpdateMarketLocation();
   const generateRoadmap = useGenerateRoadmapV2();
 
   const [activeStep, setActiveStep] = useState(1);
@@ -116,12 +118,19 @@ function MarketRealityPage() {
   const [showRoleDialog, setShowRoleDialog] = useState(false);
   const [customRoleInput, setCustomRoleInput] = useState("");
   const [changingRole, setChangingRole] = useState(false);
+  const [locationInput, setLocationInput] = useState("");
+  const [savingLocation, setSavingLocation] = useState(false);
   const [generatedSuccess, setGeneratedSuccess] = useState(false);
   const [roadmapItems, setRoadmapItems] = useState<string[]>([]);
   const [opinionSearch, setOpinionSearch] = useState("");
   const marketContentRef = useRef<HTMLDivElement>(null);
   const stepContentRef = useRef<HTMLDivElement>(null);
   const expertOpinionRef = useRef<HTMLElement>(null);
+
+  /* Seed the location input from the loaded report (once per report). */
+  useEffect(() => {
+    if (market) setLocationInput(market.location ?? "");
+  }, [market?.location]);
 
   /* ---- Loading State ---- */
   if (isLoading) {
@@ -263,6 +272,23 @@ function MarketRealityPage() {
     }
   };
 
+  const handleLocationSave = async () => {
+    const value = locationInput.trim();
+    setSavingLocation(true);
+    try {
+      await updateLocation.mutateAsync(value.length > 0 ? value : null);
+      toast.success(
+        value.length > 0
+          ? `Market location set to ${value} — report will refresh with local scope.`
+          : "Market location cleared — showing the global view.",
+      );
+    } catch {
+      toast.error("Couldn't save the market location.");
+    } finally {
+      setSavingLocation(false);
+    }
+  };
+
   const handleGenerateRoadmap = () => {
     generateRoadmap.mutate(undefined, {
       onSuccess: (res) => {
@@ -381,6 +407,40 @@ function MarketRealityPage() {
               <p className="mt-1 text-xs text-muted-foreground">
                 Every expectation, gap, and recommendation below is mapped to this target.
               </p>
+              {/* Market location scope — country/city/remote, or empty for global. */}
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <Map className="h-3.5 w-3.5 text-terracotta" />
+                <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                  Market location
+                </span>
+                <Input
+                  value={locationInput}
+                  onChange={(e) => setLocationInput(e.target.value)}
+                  placeholder="e.g. Lahore, Pakistan — or Remote, or empty for global"
+                  className="h-9 w-64 rounded-xl border-border text-xs focus:border-terracotta"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl text-xs font-bold"
+                  disabled={savingLocation || updateLocation.isPending}
+                  onClick={handleLocationSave}
+                >
+                  {savingLocation || updateLocation.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    "Apply"
+                  )}
+                </Button>
+                {market?.location && (
+                  <span className="text-[11px] text-muted-foreground">
+                    Scoped to{" "}
+                    <strong className="text-foreground">
+                      {market.location}
+                    </strong>
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <Button
