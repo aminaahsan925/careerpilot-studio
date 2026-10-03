@@ -413,3 +413,28 @@ export async function saveReadinessV2(
   if (insertError) throw insertError;
   return readiness;
 }
+
+/* ------------------------------------------------------------------ */
+/* Flag-gated entry point: v2-evidence when enabled, v1 fallback        */
+/*                                                                     */
+/* Set READINESS_V2_ENABLED=1 to route readiness through the evidence   */
+/* ledger. Any v2 failure falls back to v1 so a missing migration or    */
+/* embedding outage can never break readiness scoring.                 */
+/* ------------------------------------------------------------------ */
+export async function saveReadinessAuto(
+  supabase: Client,
+  userId: string,
+  state: CareerState,
+): Promise<Readiness> {
+  if (process.env["READINESS_V2_ENABLED"] === "1") {
+    try {
+      return await saveReadinessV2(supabase, userId, state);
+    } catch (err) {
+      console.error(
+        "[readiness] v2-evidence failed, falling back to v1:",
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+  }
+  return saveReadiness(supabase, userId, state);
+}

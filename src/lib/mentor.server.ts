@@ -3,6 +3,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { groqChat, type ChatMsg } from "./ai.server";
 import { consumeAiQuota } from "./ai-quota.server";
+import {
+  buildRetrievalContext,
+  retrieveCandidateEvidence,
+} from "./evidence/retrieval";
 
 type Client = SupabaseClient<Database>;
 
@@ -124,7 +128,8 @@ Rules:
 - If their skills don't match market demand, state it explicitly: "The market wants X. You have Y. That gap is why you're not getting interviews."
 - Be concrete and actionable: name specific skills, projects, resources, and deadlines.
 - Keep replies under 180 words, plain text, no markdown headings. Short paragraphs or dashes only.
-- Direct, urgent, and practical — never generic filler, never soft encouragement.`;
+- Direct, urgent, and practical — never generic filler, never soft encouragement.
+- When candidate evidence is provided, cite it by its source label (e.g. "your resume", "project X") instead of restating it vaguely.`;
 
 export async function runMentorTurn(
   supabase: Client,
@@ -153,8 +158,27 @@ export async function runMentorTurn(
 
   const history = (historyRes.data ?? []).slice().reverse();
 
+  // Phase 2: retrieve candidate evidence relevant to this message (RAG).
+  // Best-effort — retrieval failure (e.g. no embedding key) must never break
+  // the mentor turn; the profile context above remains the grounding source.
+  let evidenceBlock = "No candidate evidence retrieved.";
+  try {
+    const chunks = await retrieveCandidateEvidence(supabase, userId, trimmed, {
+      matchCount: 6,
+    });
+    evidenceBlock = buildRetrievalContext(chunks);
+  } catch (err) {
+    console.error(
+      "[evidence] mentor retrieval failed:",
+      err instanceof Error ? err.message : String(err),
+    );
+  }
+
   const messages: ChatMsg[] = [
-    { role: "system", content: `${SYSTEM_PROMPT}\n\n<user_profile>\n${context}\n</user_profile>` },
+    {
+      role: "system",
+      content: `${SYSTEM_PROMPT}\n\n<user_profile>\n${context}\n</user_profile>\n\n<candidate_evidence>\n${evidenceBlock}\n</candidate_evidence>`,
+    },
     ...history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
     { role: "user", content: `<user_message>\n${trimmed}\n</user_message>` },
   ];

@@ -2,14 +2,20 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/integrations/supabase/types";
 import { buildCareerState } from "./career-state.server";
-import { saveReadiness } from "./readiness.server";
+import { saveReadinessAuto } from "./readiness.server";
+import { ingestProjectEvidence } from "./evidence/ingestion";
+import { str } from "./coerce";
+
+/** Stable slug for evidence source identity (DB ids churn on every save). */
+const slug = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60) || "project";
 
 type Client = SupabaseClient<Database>;
 
-const str = (v: unknown, max = 300) =>
-  String(v ?? "")
-    .trim()
-    .slice(0, max);
 
 export type ProjectInput = {
   name: string;
@@ -66,7 +72,11 @@ export async function saveProjects(
 
   if (!projects.length) {
     // Refresh readiness since evidence may have changed
-    await saveReadiness(supabase, userId, await buildCareerState(supabase, userId));
+    await saveReadinessAuto(
+      supabase,
+      userId,
+      await buildCareerState(supabase, userId),
+    );
     return { count: 0 };
   }
 
@@ -98,10 +108,87 @@ export async function saveProjects(
   const allTechs = projects.flatMap((p) => p.technologies ?? []);
   await syncProjectEvidence(supabase, userId, allTechs);
 
+  // Phase 2: ingest each project into the evidence layer (chunk + embed +
+  // evidence items). Stable synthetic source ids — user_projects rows are
+  // deleted and re-inserted on every save, so DB ids would orphan evidence.
+  // Failures must never break the save response.
+  const seenSourceIds = new Set<string>();
+  for (const [i, p] of projects.entries()) {
+    const sourceId = `project:${slug(p.name || `project-${i + 1}`)}`;
+    seenSourceIds.add(sourceId);
+    try {
+      await ingestProjectEvidence(supabase, userId, {
+        id: sourceId,
+        name: p.name || `Project ${i + 1}`,
+        description: p.description ?? null,
+        technologies: p.technologies ?? [],
+        project_url: p.projectUrl ?? null,
+      });
+    } catch (err) {
+      console.error(
+        "[evidence] project ingestion failed:",
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+  }
+  await pruneStaleProjectEvidence(supabase, userId, seenSourceIds);
+
   // Refresh readiness
-  await saveReadiness(supabase, userId, await buildCareerState(supabase, userId));
+  await saveReadinessAuto(
+    supabase,
+    userId,
+    await buildCareerState(supabase, userId),
+  );
 
   return { count: rows.length };
+}
+
+/**
+ * Remove evidence_items / evidence_sources for projects that no longer exist.
+ * Chunks cascade via evidence_chunks.evidence_id FK.
+ */
+async function pruneStaleProjectEvidence(
+  supabase: Client,
+  userId: string,
+  seenSourceIds: Set<string>,
+) {
+  // NOTE: evidence_* tables postdate the generated Database types.
+  const db = supabase as unknown as SupabaseClient<any>;
+
+  const { data: items, error: itemsErr } = await db
+    .from("evidence_items")
+    .select("id, source_id")
+    .eq("user_id", userId)
+    .eq("source_type", "project");
+  if (itemsErr) {
+    console.error("[evidence] prune items failed:", itemsErr.message);
+  } else {
+    const stale = ((items ?? []) as any[])
+      .filter((r) => !seenSourceIds.has(String(r.source_id)))
+      .map((r) => r.id);
+    if (stale.length) {
+      const { error } = await db.from("evidence_items").delete().in("id", stale);
+      if (error) console.error("[evidence] prune items failed:", error.message);
+    }
+  }
+
+  const { data: sources, error: sourcesErr } = await db
+    .from("evidence_sources")
+    .select("id, source_id")
+    .eq("user_id", userId)
+    .eq("domain", "candidate")
+    .eq("source_type", "project");
+  if (sourcesErr) {
+    console.error("[evidence] prune sources failed:", sourcesErr.message);
+  } else {
+    const stale = ((sources ?? []) as any[])
+      .filter((r) => !seenSourceIds.has(String(r.source_id)))
+      .map((r) => r.id);
+    if (stale.length) {
+      const { error } = await db.from("evidence_sources").delete().in("id", stale);
+      if (error) console.error("[evidence] prune sources failed:", error.message);
+    }
+  }
 }
 
 /**
@@ -127,6 +214,32 @@ async function syncProjectEvidence(supabase: Client, userId: string, technologie
     .eq("source", "project");
 
   const have = new Set((existing ?? []).map((e) => (e.skill_name ?? "").toLowerCase()));
+  const wanted = new Set(
+    Array.from(
+      new Map(
+        technologies
+          .map((t) => t.trim())
+          .filter(Boolean)
+          .map((t) => [t.toLowerCase(), t] as const),
+      ).values(),
+    ).map((n) => n.toLowerCase()),
+  );
+
+  // Phase 2: delete stale project evidence for technologies the user removed.
+  // Previously rows were only ever inserted, so deleted projects haunted the
+  // ledger forever.
+  const staleIds = (existing ?? [])
+    .filter((e) => !wanted.has((e.skill_name ?? "").toLowerCase()))
+    .map((e) => e.id)
+    .filter(Boolean);
+  if (staleIds.length) {
+    const { error: delError } = await supabase
+      .from("skill_evidence")
+      .delete()
+      .eq("user_id", userId)
+      .in("id", staleIds);
+    if (delError) throw delError;
+  }
 
   const rows = names
     .filter((n) => !have.has(n.toLowerCase()))
