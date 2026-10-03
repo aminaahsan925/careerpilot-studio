@@ -134,7 +134,7 @@ async function loadRoadmapIntelligence(userId: string): Promise<{
   const [marketResult, diagnosisResult, trendsResult] = await Promise.allSettled([
     generateMarketReality(supabaseAdmin, userId),
     loadLatestDiagnosis(supabaseAdmin, userId),
-    getTechTrends(supabaseAdmin),
+    getTechTrends(supabaseAdmin, userId),
   ]);
 
   const market = marketResult.status === "fulfilled" ? marketResult.value : null;
