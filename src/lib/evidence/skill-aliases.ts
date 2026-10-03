@@ -71,7 +71,7 @@ const ALIASES: Record<string, AliasEntry> = {
   python: { canonical: "Python", category: "language" },
   java: { canonical: "Java", category: "language" },
   csharp: { canonical: "C#", category: "language" },
-  c: { canonical: "C#", category: "language" },
+  c: { canonical: "C", category: "language" },
   cpp: { canonical: "C++", category: "language" },
   go: { canonical: "Go", category: "language" },
   golang: { canonical: "Go", category: "language" },
@@ -144,8 +144,19 @@ export function normalizeKey(raw: string): string {
  * Normalize a free-text skill to its canonical form.
  * Never throws; unknown skills fall back to a title-cased label so no
  * information is lost, flagged with known: false.
+ *
+ * NOTE: symbols matter for some languages — "C#", "C++" and "F#" are
+ * special-cased before the generic normalization strips non-alphanumerics,
+ * otherwise "C#" would collapse to "c" (the C language).
  */
 export function normalizeSkill(raw: string): NormalizedSkill {
+  const trimmed = raw.trim().toLowerCase();
+  if (trimmed === "c#")
+    return { canonical: "C#", category: "language", known: true };
+  if (trimmed === "c++")
+    return { canonical: "C++", category: "language", known: true };
+  if (trimmed === "f#")
+    return { canonical: "F#", category: "language", known: true };
   const key = normalizeKey(raw);
   if (!key) return { canonical: "Unknown", category: "other", known: false };
   const hit = ALIASES[key];

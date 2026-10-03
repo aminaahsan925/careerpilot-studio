@@ -177,12 +177,12 @@ async function insertItemOnce(
     skill_key: string;
     claim: string;
     source_type: string;
-    source_id?: string;
-    source_url?: string;
-    content?: string;
+    source_id?: string | undefined;
+    source_url?: string | undefined;
+    content?: string | undefined;
     evidence_strength: number;
-    verification_status?: string;
-    confidence?: number;
+    verification_status?: string | undefined;
+    confidence?: number | undefined;
     dedupeKey: string;
   },
 ): Promise<boolean> {
@@ -345,12 +345,21 @@ export async function backfillUserEvidence(db: Db, userId: string): Promise<{ it
   for (const row of ((legacy ?? []) as any[])) {
     const n = normalizeSkill(String(row.skill_name ?? ""));
     if (n.canonical === "Unknown") continue;
+    // Legacy enum drift: skill_evidence.source uses "certification" but the
+    // evidence_items source_type enum only permits "certificate". Map explicitly.
+    const legacySource = String(row.source ?? "");
+    const sourceType =
+      legacySource === "certification"
+        ? "certificate"
+        : (
+              ["claim", "resume", "project", "github", "course"] as const
+            ).includes(legacySource as any)
+          ? legacySource
+          : "other";
     const ok = await insertItemOnce(db, userId, {
       skill_key: n.canonical,
       claim: row.detail ? `${n.canonical}: ${String(row.detail).slice(0, 200)}` : `Evidence for ${n.canonical}`,
-      source_type: ["claim", "resume", "project", "github", "certification", "course"].includes(row.source)
-        ? row.source
-        : "other",
+      source_type: sourceType as any,
       content: row.detail ? String(row.detail).slice(0, 500) : undefined,
       evidence_strength: Math.max(0, Math.min(3, Number(row.strength ?? 1) || 0)),
       verification_status: "extracted",
