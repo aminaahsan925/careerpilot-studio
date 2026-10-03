@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/integrations/supabase/types";
 import { parseJsonObject } from "./ai.server";
+import { str as text } from "./coerce";
 import { guardedChat } from "./ai-quota.server";
 import { buildCareerState, careerStateToPrompt, type CareerState } from "./career-state.server";
 import { tavilySearch, type TavilyResult } from "./tavily.server";
@@ -55,10 +56,6 @@ type GitLabProject = {
 
 type GitLabTreeEntry = { path?: string; type?: string };
 
-const text = (value: unknown, max: number) =>
-  String(value ?? "")
-    .trim()
-    .slice(0, max);
 
 const unique = (values: string[]) => Array.from(new Set(values.filter(Boolean)));
 

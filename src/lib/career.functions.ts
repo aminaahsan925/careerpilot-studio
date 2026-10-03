@@ -1,11 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { str as text } from "./coerce";
 
-const text = (v: unknown, max: number) =>
-  String(v ?? "")
-    .trim()
-    .slice(0, max);
 
 /** Career State summary + the latest persisted diagnosis, in one call. */
 export const getCareerOverview = createServerFn({ method: "GET" })

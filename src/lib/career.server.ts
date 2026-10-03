@@ -9,14 +9,11 @@ import {
   weekStart,
   type CareerState,
 } from "./career-state.server";
-import { saveReadiness } from "./readiness.server";
+import { saveReadinessAuto } from "./readiness.server";
+import { str } from "./coerce";
 
 type Client = SupabaseClient<Database>;
 
-const str = (v: unknown, max = 200) =>
-  String(v ?? "")
-    .trim()
-    .slice(0, max);
 
 function normaliseSkill(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9+#.]/g, "");
@@ -261,7 +258,7 @@ export async function analyzeTargetJob(
   }
 
   const fresh = await buildCareerState(supabase, userId);
-  const readiness = await saveReadiness(supabase, userId, fresh);
+  const readiness = await saveReadinessAuto(supabase, userId, fresh);
 
   return { targetJobId: job.id as string, gaps: gapRows.length, readiness };
 }
@@ -362,7 +359,11 @@ export async function recordSkillEvidence(
     if (error) throw error;
   }
 
-  const readiness = await saveReadiness(supabase, userId, await buildCareerState(supabase, userId));
+  const readiness = await saveReadinessAuto(
+    supabase,
+    userId,
+    await buildCareerState(supabase, userId),
+  );
   return { added: rows.length, readiness };
 }
 
@@ -418,7 +419,7 @@ export async function generateWeeklyGoals(supabase: Client, userId: string) {
 
 export async function refreshReadiness(supabase: Client, userId: string) {
   const state = await buildCareerState(supabase, userId);
-  return saveReadiness(supabase, userId, state);
+  return saveReadinessAuto(supabase, userId, state);
 }
 
 export async function loadCareerState(supabase: Client, userId: string): Promise<CareerState> {

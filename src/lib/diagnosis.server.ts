@@ -14,14 +14,11 @@ import { parseJsonObject, stringList } from "./ai.server";
 import { guardedChat } from "./ai-quota.server";
 import { buildCareerState, careerStateToPrompt, type CareerState } from "./career-state.server";
 import { benchmarkRole, type MarketBenchmark } from "./market-fit";
-import { saveReadiness, type Readiness } from "./readiness.server";
+import { saveReadinessAuto, type Readiness } from "./readiness.server";
+import { str } from "./coerce";
 
 type Client = SupabaseClient<Database>;
 
-const str = (v: unknown, max = 300) =>
-  String(v ?? "")
-    .trim()
-    .slice(0, max);
 
 export type DiagnosisBlocker = {
   problem: string;
@@ -355,7 +352,7 @@ export async function runCareerDiagnosis(
   const companyTruth = matchCompanyTruth(targetCompany);
   const roleMatch = matchRoleProfile(targetRole);
   const benchmark = benchmarkRole(targetRole, state.skills);
-  const readiness = await saveReadiness(supabase, userId, state);
+  const readiness = await saveReadinessAuto(supabase, userId, state);
   const previous = await loadLatestDiagnosis(supabase, userId);
 
   // Generate the deterministic company rejection diagnosis baseline
