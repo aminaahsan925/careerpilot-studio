@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { AiError, parseJsonObject, type ChatMsg } from "./ai.server";
 import { guardedChat } from "./ai-quota.server";
+import { strArray } from "./coerce";
 import {
   researchTechTrends,
   tavilySearch,
@@ -517,13 +518,6 @@ function parseCachedReport(raw: Record<string, unknown>): TechTrendsReport {
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
 
-function strArray(v: unknown, max = 8): string[] {
-  if (!Array.isArray(v)) return [];
-  return v
-    .map((x) => (typeof x === "string" ? x.trim() : ""))
-    .filter(Boolean)
-    .slice(0, max);
-}
 
 function shapeTechTrend(raw: Record<string, unknown>, fallbackName: string): TechTrend {
   const sourcesRaw = (raw["sources"] as Record<string, unknown>[]) ?? [];

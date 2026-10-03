@@ -1,4 +1,5 @@
 import { parseJsonObject } from "./ai.server";
+import { str } from "./coerce";
 import { guardedChat } from "./ai-quota.server";
 import { buildCareerContext } from "./mentor.server";
 import { generateMarketReality, type MarketReality } from "./market.server";
@@ -16,10 +17,6 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabaseAdmin as any;
 
-const str = (v: unknown, max = 200) =>
-  String(v ?? "")
-    .trim()
-    .slice(0, max);
 
 type RoadmapResource = {
   label: string;
