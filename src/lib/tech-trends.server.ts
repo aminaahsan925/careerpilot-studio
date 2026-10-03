@@ -12,6 +12,7 @@ import {
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { TECH_TREND_CATEGORIES, type TechTrendCategory } from "@/data/tech-trends";
+import { techTrendsTopic } from "./cache-keys";
 
 export { TECH_TREND_CATEGORIES, type TechTrendCategory };
 
@@ -65,7 +66,6 @@ export type TechTrendsReport = {
 };
 
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-const GLOBAL_TOPIC = "global_tech_trends";
 
 /* ------------------------------------------------------------------ */
 
@@ -83,38 +83,36 @@ export async function getTechTrends(
   opts?: { forceRefresh?: boolean; category?: string },
 ): Promise<TechTrendsReport> {
   const category = opts?.category ?? "All";
+  const topic = techTrendsTopic(category);
 
   // 1. Check cache
   if (!opts?.forceRefresh) {
-    const cached = await loadFromCache(supabase, GLOBAL_TOPIC);
+    const cached = await loadFromCache(supabase, topic);
     if (cached) {
       console.info("[TechTrends] served from cache", { category });
       return { ...cached, fromCache: true };
     }
   }
 
-  // 2. Research via Tavily — catch TavilyErrors so we can give a clear message
+  // 2. Research via Tavily — a TavilyError means we have no evidence.
+  // There is no invented-data fallback: serving fabricated "trends" as
+  // research would be worse than showing an honest error.
   let tavilyResults: TavilySearchResponse[];
   try {
     tavilyResults = await collectTrendEvidence(category);
   } catch (error) {
     if (error instanceof TavilyError) {
-      console.warn("[TechTrends] Tavily research failed, using static fallback:", error.message);
-      // Return static fallback instead of breaking the page
-      const fallback = buildStaticFallback(category);
-      await saveToCache(supabase, GLOBAL_TOPIC, fallback);
-      return { ...fallback, fromCache: false };
+      console.error("[TechTrends] Tavily research failed:", error.message);
     }
     throw error;
   }
 
   // If ALL Tavily calls failed silently (Promise.allSettled filtered them out),
-  // we have no evidence to work with — use static fallback.
+  // we have no evidence to work with — fail loudly rather than inventing.
   if (tavilyResults.length === 0 || tavilyResults.every((r) => r.results.length === 0)) {
-    console.warn("[TechTrends] Tavily returned no results, using static fallback");
-    const fallback = buildStaticFallback(category);
-    await saveToCache(supabase, GLOBAL_TOPIC, fallback);
-    return { ...fallback, fromCache: false };
+    throw new TavilyError(
+      "Web research returned no results for this topic. Please try again shortly.",
+    );
   }
 
   // 3. Synthesise via AI
@@ -123,7 +121,7 @@ export async function getTechTrends(
     report = await synthesiseTrends(supabase, userId, tavilyResults, category);
   } catch (error) {
     if (error instanceof AiError) {
-      console.warn("[TechTrends] AI synthesis failed, building fallback:", error.message);
+      console.warn("[TechTrends] AI synthesis failed, using evidence-only report:", error.message);
       report = buildFallbackFromTavily(tavilyResults, category);
     } else {
       throw error;
@@ -131,7 +129,7 @@ export async function getTechTrends(
   }
 
   // 4. Persist to cache
-  await saveToCache(supabase, GLOBAL_TOPIC, report);
+  await saveToCache(supabase, topic, report);
 
   return { ...report, fromCache: false };
 }
@@ -169,7 +167,9 @@ export async function getTechTrendDetail(
 /* Evidence collection                                                 */
 /* ------------------------------------------------------------------ */
 
-async function collectTrendEvidence(category: string): Promise<TavilySearchResponse[]> {
+async function collectTrendEvidence(
+  category: string,
+): Promise<TavilySearchResponse[]> {
   if (category === "All") {
     // Research broad categories plus company and horizon signals. The UI
     // should explain where the industry is heading, not only name tools.
@@ -206,7 +206,9 @@ async function collectTrendEvidence(category: string): Promise<TavilySearchRespo
     if (fulfilled.length === 0 && results.length > 0) {
       const firstReason = results[0]!.status === "rejected" ? results[0]!.reason : null;
       if (firstReason instanceof TavilyError) throw firstReason;
-      throw new TavilyError("All web research requests failed. Please try again shortly.");
+      throw new TavilyError(
+        "All web research requests failed. Please try again shortly.",
+      );
     }
 
     return fulfilled;
@@ -560,226 +562,4 @@ function buildDetailPrompt(technologyName: string, searchResult: TavilySearchRes
   }));
 
   return `Analyse these web research results about ${technologyName} and produce a detailed technology intelligence report.\n\nResults:\n${JSON.stringify(compactResults)}\n\nUse ONLY the evidence above. Return the JSON object as specified.`;
-}
-
-/* ------------------------------------------------------------------ */
-/* Static fallback — used when Tavily API is unavailable               */
-/* ------------------------------------------------------------------ */
-
-function buildStaticFallback(category: string): TechTrendsReport {
-  const now = new Date().toISOString();
-
-  // Curated fallback data based on well-known emerging tech trends
-  const fallbackTrends: Record<string, TechTrend[]> = {
-    AI: [
-      {
-        name: "AI Agents (Agentic AI)",
-        category: "AI",
-        status: "rapid_growth",
-        trendScore: 92,
-        confidence: "high",
-        whatItIs:
-          "Autonomous AI systems that can plan, reason, use tools, and complete multi-step tasks independently — going beyond simple chatbots to actually execute workflows.",
-        whyItMatters:
-          "AI agents represent the next frontier after LLMs. Companies are building agents that can write code, manage projects, conduct research, and handle customer operations autonomously.",
-        whyEmerging:
-          "LLMs are now capable enough to power reliable tool-use and planning. Frameworks like LangGraph, CrewAI, and AutoGen have matured significantly.",
-        useCases: [
-          "Autonomous code review & debugging",
-          "Customer support automation",
-          "Research & data analysis agents",
-          "DevOps pipeline automation",
-        ],
-        prerequisites: [
-          "Python or TypeScript",
-          "LLM fundamentals (prompting, RAG)",
-          "API integration basics",
-        ],
-        learningPath: [
-          "Learn LLM APIs (OpenAI, Anthropic)",
-          "Study prompt engineering & function calling",
-          "Build a simple tool-using agent",
-          "Learn multi-agent orchestration",
-          "Build a production agent with memory & guardrails",
-        ],
-        firstProject:
-          "Build a research agent that can search the web, summarize findings, and write a structured report.",
-        careerRelevance:
-          "Every major tech company is investing in agentic AI. Engineers who can build reliable agents will be in extremely high demand.",
-        sources: [],
-        lastResearched: now,
-      },
-      {
-        name: "Small Language Models (SLMs)",
-        category: "AI",
-        status: "rapid_growth",
-        trendScore: 85,
-        confidence: "high",
-        whatItIs:
-          "Compact AI models (1-7B parameters) that run locally on devices — phones, laptops, edge hardware — without needing cloud GPUs.",
-        whyItMatters:
-          "SLMs bring AI capabilities to edge devices with privacy, low latency, and zero API costs. Microsoft Phi, Google Gemma, and Meta Llama are leading this trend.",
-        whyEmerging:
-          "Model compression techniques (quantization, distillation) have improved dramatically. SLMs now rival larger models on specific tasks.",
-        useCases: [
-          "On-device code assistance",
-          "Offline document analysis",
-          "Privacy-sensitive healthcare apps",
-          "IoT and edge computing",
-        ],
-        prerequisites: ["Python", "Basic ML concepts", "Hugging Face ecosystem"],
-        learningPath: [
-          "Understand model architectures (transformers)",
-          "Learn quantization & distillation",
-          "Run SLMs locally with Ollama",
-          "Fine-tune an SLM on custom data",
-          "Deploy an on-device AI application",
-        ],
-        firstProject:
-          "Build a local code assistant using Ollama + Phi that runs entirely on your laptop.",
-        careerRelevance:
-          "Edge AI is growing fast. Companies want engineers who can deploy AI without cloud dependency.",
-        sources: [],
-        lastResearched: now,
-      },
-    ],
-    Software: [
-      {
-        name: "Rust for Web & Systems",
-        category: "Software",
-        status: "rapid_growth",
-        trendScore: 82,
-        confidence: "high",
-        whatItIs:
-          "Rust is expanding beyond systems programming into web backends (Axum, Actix), WebAssembly, and developer tools — offering memory safety without garbage collection.",
-        whyItMatters:
-          "Major projects (Linux kernel, Android, Windows, Cloudflare) now use Rust. It prevents entire categories of bugs at compile time while matching C/C++ performance.",
-        whyEmerging:
-          "The Rust ecosystem has matured significantly. More companies are adopting it for performance-critical services and web infrastructure.",
-        useCases: [
-          "High-performance web APIs",
-          "CLI developer tools",
-          "WebAssembly modules",
-          "Embedded systems & IoT",
-        ],
-        prerequisites: [
-          "Programming fundamentals",
-          "Basic understanding of memory/pointers",
-          "Command line comfort",
-        ],
-        learningPath: [
-          "Complete the Rust Book",
-          "Build a CLI tool",
-          "Learn async Rust (tokio)",
-          "Build a web API with Axum",
-          "Explore WebAssembly with Rust",
-        ],
-        firstProject: "Build a blazing-fast URL shortener API with Axum and SQLite.",
-        careerRelevance:
-          "Rust developers command premium salaries. It's increasingly required for infrastructure and performance-critical roles.",
-        sources: [],
-        lastResearched: now,
-      },
-    ],
-    Cloud: [
-      {
-        name: "Platform Engineering (Internal Developer Platforms)",
-        category: "Cloud",
-        status: "growing",
-        trendScore: 75,
-        confidence: "medium",
-        whatItIs:
-          "Building self-service internal platforms that abstract cloud complexity for developers — using tools like Backstage, Crossplane, and Pulumi.",
-        whyItMatters:
-          "Developer experience is a competitive advantage. Platform engineers reduce cognitive load and speed up delivery by providing golden paths.",
-        whyEmerging:
-          "DevOps has evolved — organizations now realize developers need curated self-service tools, not raw cloud access.",
-        useCases: [
-          "Self-service infrastructure provisioning",
-          "Internal service catalogs",
-          "Automated CI/CD pipelines",
-          "Cost optimization dashboards",
-        ],
-        prerequisites: ["Linux & shell scripting", "Docker & Kubernetes basics", "CI/CD concepts"],
-        learningPath: [
-          "Learn Kubernetes fundamentals",
-          "Study Backstage or Port",
-          "Build a service template with Crossplane",
-          "Create a self-service developer portal",
-          "Implement platform guardrails & policies",
-        ],
-        firstProject:
-          "Build a Backstage developer portal with a one-click service deployment template.",
-        careerRelevance:
-          "Platform Engineering is one of the fastest-growing roles. Companies are hiring aggressively for this.",
-        sources: [],
-        lastResearched: now,
-      },
-    ],
-    Cybersecurity: [
-      {
-        name: "AI-Powered Security & Threat Detection",
-        category: "Cybersecurity",
-        status: "rapid_growth",
-        trendScore: 80,
-        confidence: "high",
-        whatItIs:
-          "Using machine learning and AI to detect threats, analyze vulnerabilities, and automate security responses in real-time.",
-        whyItMatters:
-          "Traditional signature-based security can't catch novel attacks. AI can analyze patterns across millions of events to identify zero-day threats.",
-        whyEmerging:
-          "The volume of security alerts has overwhelmed human analysts. AI automation is now essential for SOC teams.",
-        useCases: [
-          "Automated threat detection",
-          "Vulnerability prioritization",
-          "Phishing detection",
-          "Security log analysis",
-        ],
-        prerequisites: ["Python", "Networking fundamentals", "Basic security concepts"],
-        learningPath: [
-          "Learn security fundamentals (CompTIA Security+)",
-          "Study ML for anomaly detection",
-          "Build a log analysis pipeline",
-          "Implement an AI-based IDS",
-          "Explore SOAR platforms",
-        ],
-        firstProject: "Build a network traffic analyzer that uses ML to flag suspicious patterns.",
-        careerRelevance:
-          "Cybersecurity + AI is a powerful combination. This skillset commands top salaries in security.",
-        sources: [],
-        lastResearched: now,
-      },
-    ],
-  };
-
-  // Select trends based on category
-  let featured: TechTrend;
-  let alsoWatching: TechTrend[];
-
-  if (category !== "All" && fallbackTrends[category]) {
-    const trends = fallbackTrends[category]!;
-    featured = trends[0]!;
-    alsoWatching = trends.slice(1);
-  } else {
-    // Use AI trends as the default featured
-    featured = fallbackTrends["AI"]![0]!;
-    alsoWatching = [
-      fallbackTrends["AI"]![1]!,
-      fallbackTrends["Software"]![0]!,
-      fallbackTrends["Cloud"]![0]!,
-      fallbackTrends["Cybersecurity"]![0]!,
-    ];
-  }
-
-  return {
-    featured,
-    alsoWatching,
-    pulse: {
-      gainingAttention: alsoWatching.filter((t) => t.status === "rapid_growth").length + 1,
-      worthWatching: alsoWatching.filter((t) => t.status === "growing").length,
-      newDevelopments: alsoWatching.length + 1,
-    },
-    totalTechnologies: 1 + alsoWatching.length,
-    fromCache: false,
-  };
 }

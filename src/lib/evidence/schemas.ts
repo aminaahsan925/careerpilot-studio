@@ -111,4 +111,8 @@ export type ExtractedEvidence = z.infer<typeof ExtractedEvidenceSchema>;
 export type EvidenceExtractionResult = z.infer<typeof EvidenceExtractionResultSchema>;
 export type GapLevel = z.infer<typeof GapLevelSchema>;
 export type JobRequirement = z.infer<typeof JobRequirementSchema>;
+export type RequirementExtractionResult = z.infer<
+  typeof RequirementExtractionResultSchema
+>;
+export type RequirementImportance = z.infer<typeof RequirementImportanceSchema>;
 export type VerifierResult = z.infer<typeof VerifierResultSchema>;
