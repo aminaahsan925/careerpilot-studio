@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { AiError, parseJsonObject, type ChatMsg } from "./ai.server";
 import { guardedChat } from "./ai-quota.server";
+import { strArray } from "./coerce";
 import {
   collectMarketEvidence,
   type MarketEvidence,
@@ -357,13 +358,6 @@ Return a JSON object with EXACTLY this structure:
   }
 }`;
 
-function strArray(v: unknown, max = 10): string[] {
-  if (!Array.isArray(v)) return [];
-  return v
-    .map((x) => (typeof x === "string" ? x.trim() : ""))
-    .filter(Boolean)
-    .slice(0, max);
-}
 
 /* ------------------------------------------------------------------ */
 /* Fallback: build MarketReality directly from raw evidence            */

@@ -10,6 +10,7 @@ import {
   type SalaryBand,
 } from "@/data/market-truth";
 import { groqChat, parseJsonObject, type ChatMsg } from "./ai.server";
+import { obj, strArray, strStrict as str } from "./coerce";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = SupabaseClient<Database>;
@@ -474,24 +475,6 @@ Return a JSON object with EXACTLY this structure:
 /* ------------------------------------------------------------------ */
 /* Defensive shaping                                                   */
 /* ------------------------------------------------------------------ */
-
-function str(v: unknown): string {
-  return typeof v === "string" ? v.trim() : "";
-}
-
-function strArray(v: unknown, max = 10): string[] {
-  if (!Array.isArray(v)) return [];
-  return v
-    .map((x) => (typeof x === "string" ? x.trim() : ""))
-    .filter(Boolean)
-    .slice(0, max);
-}
-
-function obj(v: unknown): Record<string, unknown> {
-  return v !== null && typeof v === "object" && !Array.isArray(v)
-    ? (v as Record<string, unknown>)
-    : {};
-}
 
 function signalArray(v: unknown, max = 8): { name: string; evidence: string }[] {
   if (!Array.isArray(v)) return [];
