@@ -8,7 +8,15 @@ export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async ({ location }) => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) {
-      throw redirect({ to: "/auth", search: { redirect: location.pathname, reset: undefined } });
+      // BUG FIX (2026-10-30): `location.pathname` in beforeLoad resolved to "/"
+      // on a direct signed-out visit (e.g. /recruiter -> /auth?redirect=%2F),
+      // losing the requested page. This route is client-only (ssr: false),
+      // so the address bar is the reliable source for the destination.
+      const requestedPath =
+        typeof window !== "undefined" && window.location.pathname !== "/auth"
+          ? window.location.pathname
+          : location.pathname;
+      throw redirect({ to: "/auth", search: { redirect: requestedPath, reset: undefined } });
     }
 
     const { data: profile } = await supabase
@@ -32,6 +40,11 @@ export const Route = createFileRoute("/_authenticated")({
     return { user: data.user };
   },
   component: () => <Outlet />,
+  // BUG FIX (2026-10-30): navigation changed the URL while the previous
+  // page's content stayed visible until the session/profile check finished
+  // (TanStack's default pending delay). Show the loading state immediately
+  // instead of a stale page that can be clicked by mistake.
+  pendingMs: 0,
   pendingComponent: AuthPending,
 });
 

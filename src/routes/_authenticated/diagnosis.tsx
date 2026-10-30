@@ -184,6 +184,17 @@ function WizardSetup({
   const [isCustom, setIsCustom] = useState(false);
   const [role, setRole] = useState(targetRole || "Associate Software Engineer");
 
+  // BUG FIX (2026-10-30): Wizard state was set once at mount, so when the
+  // saved audit loaded later (or carried a placeholder like
+  // "I don't know my target yet"), Step 2 showed the wrong role. Sync to
+  // the latest real props, ignoring placeholder values.
+  useEffect(() => {
+    if (targetCompany) setSelectedCompany(targetCompany);
+  }, [targetCompany]);
+  useEffect(() => {
+    if (targetRole && targetRole !== "I don't know my target yet") setRole(targetRole);
+  }, [targetRole]);
+
   const effectiveCompany = isCustom && customCompany.trim() ? customCompany.trim() : selectedCompany;
   const matchedTruth = matchCompanyTruth(effectiveCompany);
 
